@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Salt Season Tracker</title>
+<meta name="description" content="Daily road-salt pulses in U.S. streams, from USGS specific conductance sensors, compared with each stream's own summer level.">
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --land: #f1f0ec;
+    --state-line: #d9d7cf;
+    --normal: #c9c8c1;
+    --c1: #86b6ef;
+    --c2: #2a78d6;
+    --c3: #104281;
+    --wash: rgba(11, 11, 11, 0.05);
+    --banner: #fff4d6;
+    --banner-ink: #5a4300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #f0efec;
+      --ink-2: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255, 255, 255, 0.10);
+      --land: #222220;
+      --state-line: #34342f;
+      --normal: #4b4b46;
+      --c1: #256abf;
+      --c2: #5598e7;
+      --c3: #b7d3f6;
+      --wash: rgba(255, 255, 255, 0.06);
+      --banner: #3a3000;
+      --banner-ink: #ffe9a8;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --land: #222220;
+    --state-line: #34342f;
+    --normal: #4b4b46;
+    --c1: #256abf;
+    --c2: #5598e7;
+    --c3: #b7d3f6;
+    --wash: rgba(255, 255, 255, 0.06);
+    --banner: #3a3000;
+    --banner-ink: #ffe9a8;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--page);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 16px 48px; }
+  .banner {
+    display: none; background: var(--banner); color: var(--banner-ink);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 18px; font-size: 14px;
+  }
+  .banner.on { display: block; }
+  .kicker {
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600; margin: 0 0 8px;
+  }
+  h1 {
+    font-size: clamp(26px, 4.2vw, 40px); line-height: 1.15; margin: 0 0 10px;
+    font-weight: 650; letter-spacing: -0.01em; max-width: 28ch; text-wrap: balance;
+  }
+  .dek { color: var(--ink-2); margin: 0 0 22px; max-width: 70ch; font-size: 16px; }
+
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .stat {
+    flex: 1 1 160px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px;
+  }
+  .stat .label { font-size: 13px; color: var(--ink-2); }
+  .stat .value { font-size: 28px; font-weight: 600; margin-top: 2px; }
+  .stat .sub { font-size: 12px; color: var(--muted); }
+
+  .controls {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin: 0 0 12px;
+  }
+  button {
+    font: inherit; font-size: 14px; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 8px; padding: 7px 14px;
+    cursor: pointer;
+  }
+  button:hover { background: var(--wash); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--c2); outline-offset: 2px; }
+  .slider { flex: 1 1 260px; display: flex; align-items: center; gap: 10px; }
+  .slider input { flex: 1; accent-color: var(--c2); }
+  .date-label { font-weight: 600; min-width: 110px; font-variant-numeric: tabular-nums; }
+  .spacer { flex: 1 1 0; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; margin-bottom: 18px; position: relative;
+  }
+  .card h2 { font-size: 16px; margin: 0 0 4px; font-weight: 600; }
+  .card .note { font-size: 13px; color: var(--ink-2); margin: 0 0 10px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--ink-2); margin-bottom: 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend svg { overflow: visible; }
+
+  #map { width: 100%; height: auto; display: block; touch-action: none; }
+  #chart { width: 100%; display: block; }
+
+  .tooltip {
+    position: absolute; pointer-events: none; z-index: 5; display: none;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 11px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    min-width: 190px; max-width: 260px;
+  }
+  .tooltip .big { font-size: 18px; font-weight: 650; }
+  .tooltip .name { color: var(--ink-2); margin-top: 2px; }
+  .tooltip .meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .tooltip .row { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
+  .tooltip .row b { min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; }
+  .tooltip .key { width: 12px; height: 3px; border-radius: 2px; display: inline-block; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--grid); }
+  th { color: var(--ink-2); font-weight: 600; font-size: 13px; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--wash); }
+  td a { color: inherit; }
+  .table-scroll { overflow-x: auto; }
+  details { margin-top: 10px; font-size: 14px; }
+  details summary { cursor: pointer; color: var(--ink-2); }
+
+  .method { font-size: 14px; color: var(--ink-2); }
+  .method h2 { color: var(--ink); }
+  .method li { margin-bottom: 6px; }
+  footer { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  footer a, .method a { color: var(--ink-2); }
+  .empty { padding: 40px 0; text-align: center; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="banner" id="demoBanner">Synthetic test data for previewing the layout. These are not real measurements.</div>
+
+  <p class="kicker">Salt season tracker</p>
+  <h1 id="headline">Loading stream salinity…</h1>
+  <p class="dek" id="dek">Daily specific conductance at USGS stream sensors across the lower 48 states, compared with each stream's own May–October level. In winter, road salt is the main reason streams spike.</p>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="controls">
+    <button id="play" type="button" aria-label="Play the last 150 days">▶ Play</button>
+    <div class="slider">
+      <label for="day" class="date-label" id="dateLabel">—</label>
+      <input id="day" type="range" min="0" max="0" value="0" aria-describedby="dateLabel">
+    </div>
+    <button id="save" type="button">Save image</button>
+  </div>
+
+  <div class="card" id="mapCard">
+    <h2>How salty is each stream compared with its summer level?</h2>
+    <div class="legend" id="legend"></div>
+    <svg id="map" viewBox="0 0 975 610" role="img" aria-label="Map of U.S. stream sensors colored by salinity compared with normal"></svg>
+    <div class="tooltip" id="mapTip"></div>
+  </div>
+
+  <div class="card" id="chartCard">
+    <h2>Share of reporting sensors above their summer level</h2>
+    <p class="note">Each column is one day. Click a column to show that day on the map.</p>
+    <div id="chartWrap"><svg id="chart" height="240"></svg></div>
+    <div class="tooltip" id="chartTip"></div>
+    <details>
+      <summary>Show daily counts as a table</summary>
+      <div class="table-scroll"><table id="dailyTable"></table></div>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2 id="topTitle">Saltiest streams</h2>
+    <p class="note">Ranked by how far each stream sits above its own summer level. Click a row to find it on the map.</p>
+    <div class="table-scroll"><table id="topTable"></table></div>
+  </div>
+
+  <div class="card method">
+    <h2>How this works</h2>
+    <ul>
+      <li><b>Measure.</b> Specific conductance (µS/cm at 25 °C) tracks dissolved salts. Sodium chloride from road salt raises it sharply after snow and ice storms.</li>
+      <li><b>Normal level.</b> Each stream's normal is the median of its daily means from May through October, when roads aren't salted. Streams need at least 60 summer days to be included.</li>
+      <li><b>Comparison.</b> The map shows each day's mean divided by that normal: under 1.5×, 1.5–3×, 3–10×, and 10× or more.</li>
+      <li><b>Caveats.</b> Data are provisional and can change. Not every spike is road salt: drought, wastewater, mining and sensor problems can also raise conductance. Tidal and estuary sensors are left out. Conductance is not the same as chloride concentration.</li>
+      <li><b>Data.</b> <a href="https://api.waterdata.usgs.gov/" rel="noopener">USGS Water Data API</a>, daily mean specific conductance (parameter 00095), refreshed every morning. <span id="updated"></span></li>
+    </ul>
+  </div>
+
+  <footer>Built by <a href="https://shantanubhide.com/">Shantanu Bhide</a>, water resources engineer.</footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---- categories: ratio of today's value to the stream's summer normal ----
+  const CATS = [
+    { key: "normal",   label: "Under 1.5×",  min: 0,   r: 1.9, color: "--normal" },
+    { key: "elevated", label: "1.5–3×",      min: 1.5, r: 3.0, color: "--c1" },
+    { key: "high",     label: "3–10×",       min: 3,   r: 4.1, color: "--c2" },
+    { key: "extreme",  label: "10× or more", min: 10,  r: 5.4, color: "--c3" },
+  ];
+  const catOf = (ratio) => (ratio == null ? -1 : ratio >= 10 ? 3 : ratio >= 3 ? 2 : ratio >= 1.5 ? 1 : 0);
+
+  const $ = (id) => document.getElementById(id);
+  const svgNS = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs = {}, parent) => {
+    const n = document.createElementNS(svgNS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const fmtInt = (n) => Math.round(n).toLocaleString("en-US");
+  const fmtRatio = (r) => (r >= 10 ? r.toFixed(0) : r.toFixed(1)) + "×";
+  const fmtDate = (iso, opts = { month: "short", day: "numeric", year: "numeric" }) =>
+    new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { ...opts, timeZone: "UTC" });
+  const siteUrl = (id) => "https://waterdata.usgs.gov/monitoring-location/" + id.replace(/^USGS-/, "") + "/";
+
+  let data, states, ratios, cats, summary, day = 0, playing = null, highlighted = -1;
+  let circles = [], layers = [], colors = {};
+
+  Promise.all([
+    fetch("assets/states.json").then((r) => r.json()),
+    fetch("data/salt.json", { cache: "no-cache" }).then((r) => r.json()),
+  ]).then(([s, d]) => {
+    states = s; data = d;
+    if (!data.sites || !data.sites.length) throw new Error("No sites in data file");
+    prepare();
+    buildMap();
+    buildLegend();
+    buildDailyTable();
+    const slider = $("day");
+    slider.max = data.dates.length - 1;
+    day = defaultDay();
+    slider.value = day;
+    slider.addEventListener("input", () => { stop(); setDay(+slider.value); });
+    $("play").addEventListener("click", togglePlay);
+    $("save").addEventListener("click", saveImage);
+    window.addEventListener("resize", debounce(drawChart, 150));
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", refreshColors);
+    new MutationObserver(refreshColors).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    if (data.demo) $("demoBanner").classList.add("on");
+    $("updated").textContent = data.generated_utc ? "Last updated " + new Date(data.generated_utc).toUTCString().replace(" GMT", " UTC") + "." : "";
+    refreshColors();
+  }).catch((err) => {
+    $("headline").textContent = "The data didn't load.";
+    $("dek").textContent = "Try refreshing the page. (" + err.message + ")";
+  });
+
+  function prepare() {
+    const n = data.dates.length;
+    ratios = data.sites.map((s) => s.sc.map((v) => (v == null ? null : v / s.base)));
+    cats = ratios.map((row) => row.map(catOf));
+    summary = data.dates.map((date, d) => {
+      const c = [0, 0, 0, 0]; let reporting = 0;
+      for (let i = 0; i < cats.length; i++) { const k = cats[i][d]; if (k >= 0) { c[k]++; reporting++; } }
+      return { date, reporting, counts: c };
+    });
+    // drop trailing days nobody has reported yet
+    data.n = n;
+  }
+
+  function defaultDay() {
+    const max = Math.max(...summary.map((s) => s.reporting));
+    for (let d = summary.length - 1; d >= 0; d--) if (summary[d].reporting >= 0.5 * max) return d;
+    return summary.length - 1;
+  }
+
+  // ------------------------------------------------------------------ map
+  function buildMap() {
+    const map = $("map");
+    const g = el("g", { class: "states" }, map);
+    for (const st of states.states) el("path", { d: st.d, "data-name": st.name }, g);
+    layers = CATS.map((c) => el("g", { class: "layer-" + c.key }, map));
+    circles = data.sites.map((s) => el("circle", { cx: s.x, cy: s.y, r: 0 }));
+    const ring = el("circle", { id: "hl", r: 9, fill: "none", "stroke-width": 2, visibility: "hidden" }, map);
+
+    const tip = $("mapTip");
+    map.addEventListener("pointermove", (ev) => {
+      const i = nearestSite(ev);
+      if (i < 0) { hideTip(); return; }
+      showSiteTip(i, ev);
+    });
+    map.addEventListener("pointerleave", hideTip);
+    map.addEventListener("click", (ev) => {
+      const i = nearestSite(ev);
+      if (i >= 0) window.open(siteUrl(data.sites[i].id), "_blank", "noopener");
+    });
+    function hideTip() { tip.style.display = "none"; if (highlighted < 0) ring.setAttribute("visibility", "hidden"); }
+  }
+
+  function svgPoint(svg, ev) {
+    const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+
+  function nearestSite(ev) {
+    const svg = $("map");
+    const p = svgPoint(svg, ev);
+    const unitsPerPx = 975 / svg.getBoundingClientRect().width;
+    const maxD = 14 * unitsPerPx;
+    let best = -1, bestD = maxD * maxD;
+    for (let i = 0; i < data.sites.length; i++) {
+      if (cats[i][day] < 0) continue;
+      const s = data.sites[i]; const dx = s.x - p.x, dy = s.y - p.y;
+      const dd = dx * dx + dy * dy;
+      if (dd < bestD) { bestD = dd; best = i; }
+    }
+    return best;
+  }
+
+  function showSiteTip(i, ev) {
+    const s = data.sites[i], tip = $("mapTip"), card = $("mapCard");
+    const r = ratios[i][day], v = s.sc[day];
+    tip.replaceChildren();
+    const big = document.createElement("div"); big.className = "big";
+    big.textContent = r == null ? "No data today" : fmtRatio(r) + " summer level";
+    const name = document.createElement("div"); name.className = "name";
+    name.textContent = s.name + (s.state ? ", " + s.state : "");
+    const meta = document.createElement("div"); meta.className = "meta";
+    meta.textContent = (v == null ? "" : fmtInt(v) + " µS/cm on " + fmtDate(data.dates[day], { month: "short", day: "numeric" }) + " · ") + "normal " + fmtInt(s.base);
+    tip.append(big, name, meta, sparkline(i));
+    const hint = document.createElement("div"); hint.className = "meta"; hint.textContent = "Click to open the USGS page";
+    tip.append(hint);
+    placeTip(tip, card, ev);
+    const ring = $("hl");
+    ring.setAttribute("cx", s.x); ring.setAttribute("cy", s.y);
+    ring.setAttribute("stroke", colors.ink); ring.setAttribute("visibility", "visible");
+  }
+
+  function sparkline(i) {
+    const w = 200, h = 44, row = ratios[i];
+    const vals = row.filter((v) => v != null);
+    const svg = el("svg", { width: w, height: h + 18, viewBox: `0 0 ${w} ${h + 18}` });
+    svg.style.display = "block"; svg.style.marginTop = "6px";
+    if (!vals.length) return svg;
+    const lo = 0.7, max = Math.max(2, ...vals);
+    const y = (v) => 2 + h - (Math.log(Math.max(v, lo)) - Math.log(lo)) / (Math.log(max) - Math.log(lo)) * h;
+    const x = (d) => (d / (row.length - 1)) * w;
+    el("line", { x1: 0, x2: w, y1: y(1), y2: y(1), stroke: colors.axis, "stroke-width": 1 }, svg);
+    let dPath = "", pen = false;
+    row.forEach((v, d) => {
+      if (v == null || v <= 0) { pen = false; return; }
+      dPath += (pen ? "L" : "M") + x(d).toFixed(1) + "," + y(v).toFixed(1); pen = true;
+    });
+    el("path", { d: dPath, fill: "none", stroke: colors.c2, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    if (row[day] != null) el("circle", { cx: x(day), cy: y(row[day]), r: 4, fill: colors.c2, stroke: colors.surface, "stroke-width": 2 }, svg);
+    const cap = el("text", { x: 0, y: h + 16, "font-size": 10, fill: colors.muted }, svg);
+    cap.textContent = "Last 150 days · line = summer level";
+    return svg;
+  }
+
+  function placeTip(tip, card, ev) {
+    tip.style.display = "block";
+    const box = card.getBoundingClientRect();
+    let left = ev.clientX - box.left + 14, top = ev.clientY - box.top + 14;
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    if (left + tw > box.width - 8) left = ev.clientX - box.left - tw - 14;
+    if (top + th > box.height - 8) top = ev.clientY - box.top - th - 14;
+    tip.style.left = Math.max(8, left) + "px"; tip.style.top = Math.max(8, top) + "px";
+  }
+
+  function paintMap() {
+    for (let i = 0; i < circles.length; i++) {
+      const c = circles[i], k = cats[i][day];
+      if (k < 0) { if (c.parentNode) c.remove(); continue; }
+      const cat = CATS[k];
+      c.setAttribute("r", cat.r);
+      c.setAttribute("fill", colors[cat.key]);
+      c.setAttribute("stroke", colors.surface);
+      c.setAttribute("stroke-width", k === 0 ? 0.6 : 1.1);
+      if (c.parentNode !== layers[k]) layers[k].appendChild(c);
+    }
+    const g = $("map").querySelector(".states");
+    g.setAttribute("fill", colors.land); g.setAttribute("stroke", colors.stateLine);
+    g.setAttribute("stroke-width", 0.8); g.setAttribute("stroke-linejoin", "round");
+    if (highlighted >= 0) {
+      const s = data.sites[highlighted], ring = $("hl");
+      ring.setAttribute("cx", s.x); ring.setAttribute("cy", s.y);
+      ring.setAttribute("stroke", colors.ink); ring.setAttribute("visibility", "visible");
+    }
+  }
+
+  function buildLegend() {
+    const lg = $("legend"); lg.replaceChildren();
+    CATS.forEach((c) => {
+      const span = document.createElement("span");
+      const sw = el("svg", { width: 14, height: 14, viewBox: "0 0 14 14", "aria-hidden": "true" });
+      el("circle", { cx: 7, cy: 7, r: Math.max(c.r, 3.2), fill: colors[c.key] || "#999" }, sw);
+      span.append(sw, document.createTextNode(c.label));
+      lg.append(span);
+    });
+  }
+
+  // ---------------------------------------------------------------- chart
+  function drawChart() {
+    const svg = $("chart"), wrap = $("chartWrap");
+    const W = Math.max(320, wrap.clientWidth), H = 240;
+    const m = { t: 10, r: 8, b: 26, l: 40 };
+    svg.setAttribute("width", W); svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    svg.replaceChildren();
+    const n = summary.length;
+    const share = summary.map((s) => s.reporting ? s.counts.map((c) => (100 * c) / s.reporting) : [0, 0, 0, 0]);
+    const top = Math.max(5, ...share.map((s) => s[1] + s[2] + s[3]));
+    const yMax = niceMax(top);
+    const iw = W - m.l - m.r, ih = H - m.t - m.b;
+    const slot = iw / n, bw = Math.max(1, slot - (slot > 4 ? 2 : 1));
+    const y = (v) => m.t + ih - (v / yMax) * ih;
+
+    // gridlines + y ticks on round numbers
+    const step = { 5: 1, 10: 2, 20: 5, 25: 5, 40: 10, 50: 10, 60: 20, 80: 20, 100: 20 }[yMax] || yMax / 4;
+    for (let v = 0; v <= yMax + 1e-9; v += step) {
+      const yy = y(v), t = v;
+      el("line", { x1: m.l, x2: W - m.r, y1: yy, y2: yy, stroke: t === 0 ? colors.axis : colors.grid, "stroke-width": 1 }, svg);
+      const lab = el("text", { x: m.l - 6, y: yy + 4, "text-anchor": "end", "font-size": 11, fill: colors.muted }, svg);
+      lab.textContent = Math.round(v) + "%";
+    }
+    // month ticks
+    let lastMonth = -1;
+    summary.forEach((s, d) => {
+      const dt = new Date(s.date + "T00:00:00Z");
+      if (dt.getUTCDate() === 1 || (d === 0 && dt.getUTCDate() < 8)) {
+        if (dt.getUTCMonth() === lastMonth) return;
+        lastMonth = dt.getUTCMonth();
+        const xx = m.l + d * slot;
+        const lab = el("text", { x: xx, y: H - 8, "font-size": 11, fill: colors.muted }, svg);
+        lab.textContent = fmtDate(s.date, { month: "short" });
+      }
+    });
+
+    // selected-day wash
+    const sel = el("rect", { id: "selWash", y: m.t, height: ih, width: slot, fill: colors.wash }, svg);
+    sel.setAttribute("x", m.l + day * slot);
+
+    // stacked columns: elevated at the bottom, extreme on top, 1px surface gap between parts
+    const bars = el("g", {}, svg);
+    share.forEach((s, d) => {
+      let base = 0;
+      const x0 = m.l + d * slot + (slot - bw) / 2;
+      for (let k = 1; k <= 3; k++) {
+        const v = s[k]; if (v <= 0) continue;
+        const y1 = y(base + v), y0 = y(base);
+        const hgt = Math.max(0, y0 - y1 - (base > 0 ? 1 : 0));
+        if (hgt > 0.2) el("rect", { x: x0, y: y1, width: bw, height: hgt, fill: colors[CATS[k].key] }, bars);
+        base += v;
+      }
+    });
+
+    // hit layer: one column-wide target per day
+    const hit = el("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent" }, svg);
+    hit.style.cursor = "pointer";
+    const dayAt = (ev) => {
+      const p = svgPoint(svg, ev);
+      return Math.min(n - 1, Math.max(0, Math.floor((p.x - m.l) / slot)));
+    };
+    hit.addEventListener("pointermove", (ev) => showChartTip(dayAt(ev), ev, share));
+    hit.addEventListener("pointerleave", () => { $("chartTip").style.display = "none"; });
+    hit.addEventListener("click", (ev) => { stop(); setDay(dayAt(ev)); $("day").value = day; });
+    drawChart.layout = { m, slot };
+  }
+
+  function showChartTip(d, ev, share) {
+    const tip = $("chartTip"), s = summary[d];
+    tip.replaceChildren();
+    const head = document.createElement("div"); head.className = "name";
+    head.textContent = fmtDate(s.date) + " · " + fmtInt(s.reporting) + " sensors";
+    tip.append(head);
+    for (let k = 3; k >= 1; k--) {
+      const row = document.createElement("div"); row.className = "row";
+      const key = document.createElement("span"); key.className = "key"; key.style.background = colors[CATS[k].key];
+      const val = document.createElement("b"); val.textContent = share[d][k].toFixed(1) + "%";
+      const lab = document.createElement("span"); lab.textContent = CATS[k].label + " (" + fmtInt(s.counts[k]) + ")";
+      row.append(key, val, lab); tip.append(row);
+    }
+    placeTip(tip, $("chartCard"), ev);
+  }
+
+  function niceMax(v) {
+    const steps = [5, 10, 20, 25, 40, 50, 60, 80, 100];
+    for (const s of steps) if (v <= s) return s;
+    return 100;
+  }
+
+  function buildDailyTable() {
+    const t = $("dailyTable"); t.replaceChildren();
+    const head = t.createTHead().insertRow();
+    ["Date", "Sensors reporting", "1.5–3×", "3–10×", "10× or more"].forEach((h, i) => {
+      const th = document.createElement("th"); th.textContent = h; if (i) th.className = "num"; head.append(th);
+    });
+    const body = t.createTBody();
+    for (let d = summary.length - 1; d >= 0; d--) {
+      const s = summary[d], r = body.insertRow();
+      [fmtDate(s.date), fmtInt(s.reporting), fmtInt(s.counts[1]), fmtInt(s.counts[2]), fmtInt(s.counts[3])].forEach((v, i) => {
+        const td = r.insertCell(); td.textContent = v; if (i) td.className = "num";
+      });
+    }
+  }
+
+  // ------------------------------------------------------------- day state
+  function setDay(d) {
+    day = d;
+    $("dateLabel").textContent = fmtDate(data.dates[day]);
+    paintMap();
+    const wash = $("selWash"), L = drawChart.layout;
+    if (wash && L) wash.setAttribute("x", L.m.l + day * L.slot);
+    updateHeadline();
+    updateTop();
+  }
+
+  function headlineText(d = day) {
+    const s = summary[d], n = s.counts[2] + s.counts[3];
+    const when = fmtDate(data.dates[d], { month: "long", day: "numeric" });
+    if (!s.reporting) return "No sensors reported on " + when + ".";
+    if (n === 0) return "No U.S. streams ran 3× above their summer salinity on " + when + ".";
+    return fmtInt(n) + (n === 1 ? " U.S. stream" : " U.S. streams") + " ran at least 3× their summer salinity on " + when + ".";
+  }
+
+  function updateHeadline() {
+    $("headline").textContent = headlineText();
+    const s = summary[day], above = s.counts[1] + s.counts[2] + s.counts[3];
+    const tiles = [
+      ["Sensors reporting", fmtInt(s.reporting), "USGS stream gages"],
+      ["Above 1.5× normal", fmtInt(above), s.reporting ? Math.round((100 * above) / s.reporting) + "% of reporting" : ""],
+      ["10× or more", fmtInt(s.counts[3]), "the sharpest salt pulses"],
+    ];
+    const box = $("stats"); box.replaceChildren();
+    for (const [label, value, sub] of tiles) {
+      const div = document.createElement("div"); div.className = "stat";
+      const a = document.createElement("div"); a.className = "label"; a.textContent = label;
+      const b = document.createElement("div"); b.className = "value"; b.textContent = value;
+      const c = document.createElement("div"); c.className = "sub"; c.textContent = sub;
+      div.append(a, b, c); box.append(div);
+    }
+  }
+
+  function updateTop() {
+    $("topTitle").textContent = "Saltiest streams on " + fmtDate(data.dates[day]);
+    const rows = [];
+    for (let i = 0; i < data.sites.length; i++) if (ratios[i][day] != null) rows.push(i);
+    rows.sort((a, b) => ratios[b][day] - ratios[a][day]);
+    const t = $("topTable"); t.replaceChildren();
+    const head = t.createTHead().insertRow();
+    ["Stream", "State", "Today (µS/cm)", "Summer normal", "× normal"].forEach((h, i) => {
+      const th = document.createElement("th"); th.textContent = h; if (i >= 2) th.className = "num"; head.append(th);
+    });
+    const body = t.createTBody();
+    for (const i of rows.slice(0, 15)) {
+      const s = data.sites[i], r = body.insertRow();
+      const nameCell = r.insertCell();
+      const a = document.createElement("a"); a.href = siteUrl(s.id); a.target = "_blank"; a.rel = "noopener";
+      a.textContent = s.name; nameCell.append(a);
+      r.insertCell().textContent = s.state;
+      [fmtInt(s.sc[day]), fmtInt(s.base), fmtRatio(ratios[i][day])].forEach((v) => {
+        const td = r.insertCell(); td.textContent = v; td.className = "num";
+      });
+      r.addEventListener("click", (ev) => {
+        if (ev.target.tagName === "A") return;
+        highlighted = i; paintMap();
+        $("mapCard").scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
+    if (!rows.length) {
+      const r = body.insertRow(), td = r.insertCell(); td.colSpan = 5; td.textContent = "No sensors reported on this day.";
+    }
+  }
+
+  // ------------------------------------------------------------- playback
+  function togglePlay() { playing ? stop() : play(); }
+  function play() {
+    if (day >= data.dates.length - 1) setDay(0);
+    $("play").textContent = "❚❚ Pause";
+    playing = setInterval(() => {
+      if (day >= data.dates.length - 1) { stop(); return; }
+      setDay(day + 1); $("day").value = day;
+    }, 140);
+  }
+  function stop() {
+    if (playing) clearInterval(playing);
+    playing = null; $("play").textContent = "▶ Play";
+  }
+
+  function refreshColors() {
+    colors = {
+      normal: cssVar("--normal"), elevated: cssVar("--c1"), high: cssVar("--c2"), extreme: cssVar("--c3"),
+      c2: cssVar("--c2"), surface: cssVar("--surface"), page: cssVar("--page"), ink: cssVar("--ink"),
+      ink2: cssVar("--ink-2"), muted: cssVar("--muted"), grid: cssVar("--grid"), axis: cssVar("--axis"),
+      land: cssVar("--land"), stateLine: cssVar("--state-line"), wash: cssVar("--wash"),
+    };
+    buildLegend(); drawChart(); setDay(day);
+  }
+
+  function debounce(fn, ms) { let t; return () => { clearTimeout(t); t = setTimeout(fn, ms); }; }
+
+  // ------------------------------------------------------------ save image
+  // A 1200 x 1200 square (exported at 2x) sized for a LinkedIn post.
+  function saveImage() {
+    const S = 2, W = 1200, H = 1200, pad = 56;
+    const canvas = document.createElement("canvas");
+    canvas.width = W * S; canvas.height = H * S;
+    const ctx = canvas.getContext("2d"); ctx.scale(S, S);
+    const font = (w, px) => `${w} ${px}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    ctx.fillStyle = colors.surface; ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = colors.muted; ctx.font = font(600, 18);
+    ctx.fillText("SALT SEASON TRACKER", pad, pad + 10);
+    ctx.fillStyle = colors.ink; ctx.font = font(650, 46);
+    const lines = wrapText(ctx, headlineText(), W - 2 * pad);
+    lines.forEach((ln, k) => ctx.fillText(ln, pad, pad + 74 + k * 56));
+    let yCursor = pad + 74 + (lines.length - 1) * 56 + 46;
+    ctx.fillStyle = colors.ink2; ctx.font = font(400, 22);
+    ctx.fillText("Daily specific conductance at USGS stream sensors vs. each stream's May–Oct median", pad, yCursor);
+    yCursor += 26;
+
+    // legend
+    let lx = pad; yCursor += 22;
+    ctx.font = font(400, 20);
+    CATS.forEach((c) => {
+      ctx.beginPath(); ctx.arc(lx + 8, yCursor - 7, Math.max(c.r, 3.2) * 1.5, 0, 2 * Math.PI);
+      ctx.fillStyle = colors[c.key]; ctx.fill();
+      ctx.fillStyle = colors.ink2; ctx.fillText(c.label, lx + 22, yCursor);
+      lx += 22 + ctx.measureText(c.label).width + 30;
+    });
+
+    const mapTop = yCursor + 20, mapW = W - 2 * pad + 40, mapH = mapW * 610 / 975;
+    const clone = $("map").cloneNode(true);
+    clone.querySelector("#hl")?.remove();
+    clone.setAttribute("xmlns", svgNS);
+    clone.setAttribute("width", mapW * S); clone.setAttribute("height", mapH * S);
+    const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, pad - 20, mapTop, mapW, mapH);
+      URL.revokeObjectURL(url);
+
+      // season strip: share of sensors above normal each day, today marked
+      const sTop = mapTop + mapH + 12, sBottom = H - pad - 54, sH = sBottom - sTop - 26;
+      if (sH > 50) {
+        ctx.fillStyle = colors.ink2; ctx.font = font(400, 17);
+        ctx.fillText("Share of sensors above 1.5× their summer level, last " + summary.length + " days", pad, sTop + 14);
+        const share = summary.map((s) => s.reporting ? s.counts.map((c) => c / s.reporting) : [0, 0, 0, 0]);
+        const peak = Math.max(0.05, ...share.map((s) => s[1] + s[2] + s[3]));
+        const x0 = pad, cw = (W - 2 * pad) / share.length, base = sBottom;
+        share.forEach((s, d) => {
+          let acc = 0;
+          for (let k = 1; k <= 3; k++) {
+            const h = (s[k] / peak) * sH; if (h <= 0) continue;
+            ctx.fillStyle = colors[CATS[k].key];
+            ctx.fillRect(x0 + d * cw + 0.5, base - acc - h, Math.max(1, cw - 1.5), Math.max(0, h - (acc > 0 ? 1 : 0)));
+            acc += h;
+          }
+        });
+        ctx.fillStyle = colors.axis; ctx.fillRect(x0, base, W - 2 * pad, 1);
+        const mx = x0 + day * cw + cw / 2;
+        ctx.fillStyle = colors.ink;
+        ctx.beginPath(); ctx.moveTo(mx, base + 3); ctx.lineTo(mx - 6, base + 12); ctx.lineTo(mx + 6, base + 12); ctx.fill();
+        ctx.fillStyle = colors.muted; ctx.font = font(400, 15);
+        const short = { month: "short", day: "numeric" };
+        ctx.fillText(fmtDate(data.dates[0], short), x0, base + 20);
+        ctx.textAlign = "right"; ctx.fillText(fmtDate(data.dates[data.dates.length - 1], short), W - pad, base + 20);
+        ctx.textAlign = "left";
+      }
+
+      ctx.fillStyle = colors.muted; ctx.font = font(400, 18);
+      ctx.fillText("Data: USGS Water Data API (provisional) · Tidal sites excluded", pad, H - pad + 8);
+      ctx.textAlign = "right"; ctx.fillStyle = colors.ink2; ctx.font = font(600, 18);
+      ctx.fillText("shantanubhide.com", W - pad, H - pad + 8);
+      if (data.demo) {
+        ctx.fillStyle = "#c0392b"; ctx.font = font(700, 20);
+        ctx.fillText("SYNTHETIC TEST DATA", W - pad, pad + 10);
+      }
+      ctx.textAlign = "left";
+      canvas.toBlob((png) => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(png);
+        a.download = "salt-tracker-" + data.dates[day] + ".png";
+        document.body.append(a); a.click(); a.remove();
+      }, "image/png");
+    };
+    img.src = url;
+  }
+
+  function wrapText(ctx, text, maxW) {
+    const words = text.split(" "), out = []; let line = "";
+    for (const w of words) {
+      const test = line ? line + " " + w : w;
+      if (ctx.measureText(test).width > maxW && line) { out.push(line); line = w; } else line = test;
+    }
+    if (line) out.push(line);
+    return out;
+  }
+})();
+</script>
+</body>
+</html>

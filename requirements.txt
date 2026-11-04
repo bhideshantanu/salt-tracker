@@ -1,0 +1,2 @@
+dataretrieval==1.4.0
+pandas>=2.0
