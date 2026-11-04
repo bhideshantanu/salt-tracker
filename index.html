@@ -92,7 +92,10 @@
     font-size: clamp(26px, 4.2vw, 40px); line-height: 1.15; margin: 0 0 10px;
     font-weight: 650; letter-spacing: -0.01em; max-width: 28ch; text-wrap: balance;
   }
-  .dek { color: var(--ink-2); margin: 0 0 22px; max-width: 70ch; font-size: 16px; }
+  .dek { color: var(--ink-2); margin: 0 0 8px; max-width: 70ch; font-size: 16px; }
+  .byline { font-size: 14px; color: var(--muted); margin: 0 0 22px; }
+  .byline a { color: var(--ink-2); font-weight: 600; text-decoration: none; }
+  .byline a:hover { text-decoration: underline; }
 
   .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
   .stat {
@@ -172,6 +175,7 @@
   <p class="kicker">Salt season tracker</p>
   <h1 id="headline">Loading stream salinity…</h1>
   <p class="dek" id="dek">Daily specific conductance at USGS stream sensors across the lower 48 states, compared with each stream's own May–October level. In winter, road salt is the main reason streams spike.</p>
+  <p class="byline">By <a href="https://shantanubhide.com/">Shantanu Bhide</a> · Updated every morning with USGS data</p>
 
   <div class="stats" id="stats"></div>
 
@@ -698,7 +702,7 @@
       ctx.fillStyle = colors.muted; ctx.font = font(400, 18);
       ctx.fillText("Data: USGS Water Data API (provisional) · Tidal sites excluded", pad, H - pad + 8);
       ctx.textAlign = "right"; ctx.fillStyle = colors.ink2; ctx.font = font(600, 18);
-      ctx.fillText("shantanubhide.com", W - pad, H - pad + 8);
+      ctx.fillText("Shantanu Bhide · shantanubhide.com", W - pad, H - pad + 8);
       if (data.demo) {
         ctx.fillStyle = "#c0392b"; ctx.font = font(700, 20);
         ctx.fillText("SYNTHETIC TEST DATA", W - pad, pad + 10);
