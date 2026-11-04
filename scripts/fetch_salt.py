@@ -28,6 +28,7 @@ import json
 import logging
 import math
 import random
+import re
 import sys
 import time
 from pathlib import Path
@@ -179,10 +180,20 @@ def _lon_lat(geom):
         return None, None
 
 
+_SMALL_WORDS = {"Nr": "near", "Near": "near", "At": "at", "Abv": "above", "Above": "above",
+                "Blw": "below", "Below": "below", "Of": "of", "And": "and", "The": "the",
+                "On": "on", "In": "in"}
+
+
 def _clean_name(name):
+    """'STILLWATER RIVER NEAR STERLING, MA' -> 'Stillwater River near Sterling, MA'."""
     if not isinstance(name, str):
         return ""
-    return " ".join(name.split()).title().replace(" Nr ", " near ").replace(" At ", " at ")
+    words = " ".join(name.split()).title().split(" ")
+    words = [words[0]] + [_SMALL_WORDS.get(w, w) for w in words[1:]]
+    out = " ".join(words)
+    # keep a trailing two-letter state code in capitals
+    return re.sub(r",\s*([A-Za-z]{2})\.?$", lambda m: ", " + m.group(1).upper(), out)
 
 
 # ---------------------------------------------------------------- calculations
@@ -284,7 +295,8 @@ def run_update(prev: dict, today: dt.date) -> dict:
     values = {sid: dict(zip(prev["dates"], s["sc"])) for sid, s in known.items()}
     for site_id, series in _to_values(daily[daily["site"].isin(known)]).items():
         values[site_id].update(series)
-    sites = {sid: {"name": s["name"], "state": s["state"], "lon": s["lon"], "lat": s["lat"]}
+    sites = {sid: {"name": _clean_name(s["name"]), "state": s["state"],
+                   "lon": s["lon"], "lat": s["lat"]}
              for sid, s in known.items()}
     baselines = {sid: s["base"] for sid, s in known.items()}
     payload = assemble(values, sites, baselines, _last_full_day(daily, today))
