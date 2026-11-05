@@ -6,7 +6,7 @@
  },
  "sets": {
   "live": {
-   "updated_utc": "2026-11-05T15:35:34+00:00",
+   "updated_utc": "2026-11-05T21:01:50+00:00",
    "tide_lookup_ok": true,
    "sites": [
     {
@@ -20,36 +20,6 @@
      "reason": "USGS also measures salinity here; gage at 2 ft elevation, 10 km from the coast"
     },
     {
-     "id": "USGS-01651800",
-     "name": "Watts Branch at Washington, DC",
-     "state": "DC",
-     "lon": -76.9433,
-     "lat": 38.9013,
-     "altitude_ft": 10.7,
-     "coast_km": 7.8,
-     "reason": "gage at 11 ft elevation, 8 km from the coast"
-    },
-    {
-     "id": "USGS-01484525",
-     "name": "Millsboro Pond Outlet at Millsboro, DE",
-     "state": "DE",
-     "lon": -75.291,
-     "lat": 38.5946,
-     "altitude_ft": 1.4,
-     "coast_km": 7.2,
-     "reason": "gage at 1 ft elevation, 7 km from the coast"
-    },
-    {
-     "id": "USGS-01483155",
-     "name": "Silver Lake Tributary at Middletown, DE",
-     "state": "DE",
-     "lon": -75.7095,
-     "lat": 39.431,
-     "altitude_ft": 13.0,
-     "coast_km": 11.0,
-     "reason": "gage at 13 ft elevation, 11 km from the coast"
-    },
-    {
      "id": "USGS-01483700",
      "name": "St Jones River at Dover, DE",
      "state": "DE",
@@ -58,26 +28,6 @@
      "altitude_ft": -0.8,
      "coast_km": 9.8,
      "reason": "gage at -1 ft elevation, 10 km from the coast"
-    },
-    {
-     "id": "USGS-01480025",
-     "name": "White Clay Creek at Stanton, DE",
-     "state": "DE",
-     "lon": -75.6458,
-     "lat": 39.7059,
-     "altitude_ft": -1.1,
-     "coast_km": 7.8,
-     "reason": "gage at -1 ft elevation, 8 km from the coast"
-    },
-    {
-     "id": "USGS-01479000",
-     "name": "White Clay Creek near Newark, DE",
-     "state": "DE",
-     "lon": -75.675,
-     "lat": 39.6992,
-     "altitude_ft": 7.9,
-     "coast_km": 9.0,
-     "reason": "gage at 8 ft elevation, 9 km from the coast"
     },
     {
      "id": "USGS-02301500",
@@ -230,46 +180,6 @@
      "reason": "USGS also measures salinity here"
     },
     {
-     "id": "USGS-01585075",
-     "name": "Foster Branch near Joppatowne, MD",
-     "state": "MD",
-     "lon": -76.3426,
-     "lat": 39.4085,
-     "altitude_ft": 0.3,
-     "coast_km": 1.5,
-     "reason": "gage at 0 ft elevation, 2 km from the coast"
-    },
-    {
-     "id": "USGS-01649500",
-     "name": "Northeast Branch Anacostia River at Riverdale, MD",
-     "state": "MD",
-     "lon": -76.926,
-     "lat": 38.9603,
-     "altitude_ft": 11.6,
-     "coast_km": 13.0,
-     "reason": "gage at 12 ft elevation, 13 km from the coast"
-    },
-    {
-     "id": "USGS-01651003",
-     "name": "Northwest Branch Anacostia River at Brentwood, MD",
-     "state": "MD",
-     "lon": -76.9562,
-     "lat": 38.949,
-     "altitude_ft": 3.6,
-     "coast_km": 10.3,
-     "reason": "gage at 4 ft elevation, 10 km from the coast"
-    },
-    {
-     "id": "USGS-01579550",
-     "name": "Susquehanna River near Darlington, MD",
-     "state": "MD",
-     "lon": -76.1577,
-     "lat": 39.6261,
-     "altitude_ft": 9.0,
-     "coast_km": 9.9,
-     "reason": "gage at 9 ft elevation, 10 km from the coast"
-    },
-    {
      "id": "USGS-02081094",
      "name": "Roanoke River at Jamesville, NC",
      "state": "NC",
@@ -278,36 +188,6 @@
      "altitude_ft": -1.0,
      "coast_km": 20.7,
      "reason": "gage at -1 ft elevation, 21 km from the coast"
-    },
-    {
-     "id": "USGS-01467150",
-     "name": "Cooper River at Haddonfield Nj",
-     "state": "NJ",
-     "lon": -75.0214,
-     "lat": 39.9031,
-     "altitude_ft": 7.6,
-     "coast_km": 6.6,
-     "reason": "gage at 8 ft elevation, 7 km from the coast"
-    },
-    {
-     "id": "USGS-01408029",
-     "name": "Manasquan River near Allenwood Nj",
-     "state": "NJ",
-     "lon": -74.1222,
-     "lat": 40.1467,
-     "altitude_ft": -1.1,
-     "coast_km": 8.9,
-     "reason": "gage at -1 ft elevation, 9 km from the coast"
-    },
-    {
-     "id": "USGS-01467005",
-     "name": "Nb Rancocas C at Iron Works Park at Mount Holly Nj",
-     "state": "NJ",
-     "lon": -74.7814,
-     "lat": 39.9931,
-     "altitude_ft": 0.0,
-     "coast_km": 20.8,
-     "reason": "gage at 0 ft elevation, 21 km from the coast"
     },
     {
      "id": "USGS-01477120",
@@ -320,32 +200,12 @@
      "reason": "gage at -1 ft elevation, 12 km from the coast"
     },
     {
-     "id": "USGS-01467081",
-     "name": "South Branch Pennsauken Creek at Cherry Hill Nj",
-     "state": "NJ",
-     "lon": -75.0011,
-     "lat": 39.9417,
-     "altitude_ft": 6.8,
-     "coast_km": 6.8,
-     "reason": "gage at 7 ft elevation, 7 km from the coast"
-    },
-    {
      "id": "USGS-08405400",
      "name": "Black River at Harkey Crossing near Malaga, NM",
      "state": "NM",
      "lon": -104.1966,
      "lat": 32.2359,
      "altitude_ft": 3127.6,
-     "coast_km": null,
-     "reason": "USGS also measures salinity here"
-    },
-    {
-     "id": "USGS-01302020",
-     "name": "Bronx River at Ny Botanical Garden at Bronx Ny",
-     "state": "NY",
-     "lon": -73.8744,
-     "lat": 40.8623,
-     "altitude_ft": 49.9,
      "coast_km": null,
      "reason": "USGS also measures salinity here"
     },
@@ -380,14 +240,14 @@
      "reason": "gage at 10 ft elevation, 4 km from the coast"
     },
     {
-     "id": "USGS-01474500",
-     "name": "Schuylkill River at Philadelphia, PA",
-     "state": "PA",
-     "lon": -75.1885,
-     "lat": 39.9678,
-     "altitude_ft": 4.5,
-     "coast_km": 4.9,
-     "reason": "gage at 5 ft elevation, 5 km from the coast"
+     "id": "USGS-02110755",
+     "name": "Aiw at Briarcliffe Acres at N. Myrtle Beach, SC",
+     "state": "SC",
+     "lon": -78.7531,
+     "lat": 33.7985,
+     "altitude_ft": null,
+     "coast_km": null,
+     "reason": "on the manual list (Atlantic Intracoastal Waterway)"
     },
     {
      "id": "USGS-02110760",
@@ -448,21 +308,11 @@
      "altitude_ft": 4.2,
      "coast_km": 10.4,
      "reason": "gage at 4 ft elevation, 10 km from the coast"
-    },
-    {
-     "id": "USGS-12100490",
-     "name": "White River at R Street near Auburn, WA",
-     "state": "WA",
-     "lon": -122.2079,
-     "lat": 47.2748,
-     "altitude_ft": 3.7,
-     "coast_km": 12.7,
-     "reason": "gage at 4 ft elevation, 13 km from the coast"
     }
    ]
   },
   "2025-26": {
-   "updated_utc": "2026-11-05T15:36:26+00:00",
+   "updated_utc": "2026-11-05T21:02:58+00:00",
    "tide_lookup_ok": true,
    "sites": [
     {
@@ -476,36 +326,6 @@
      "reason": "USGS also measures salinity here; gage at 2 ft elevation, 10 km from the coast"
     },
     {
-     "id": "USGS-01651800",
-     "name": "Watts Branch at Washington, DC",
-     "state": "DC",
-     "lon": -76.9433,
-     "lat": 38.9013,
-     "altitude_ft": 10.7,
-     "coast_km": 7.8,
-     "reason": "gage at 11 ft elevation, 8 km from the coast"
-    },
-    {
-     "id": "USGS-01484525",
-     "name": "Millsboro Pond Outlet at Millsboro, DE",
-     "state": "DE",
-     "lon": -75.291,
-     "lat": 38.5946,
-     "altitude_ft": 1.4,
-     "coast_km": 7.2,
-     "reason": "gage at 1 ft elevation, 7 km from the coast"
-    },
-    {
-     "id": "USGS-01483155",
-     "name": "Silver Lake Tributary at Middletown, DE",
-     "state": "DE",
-     "lon": -75.7095,
-     "lat": 39.431,
-     "altitude_ft": 13.0,
-     "coast_km": 11.0,
-     "reason": "gage at 13 ft elevation, 11 km from the coast"
-    },
-    {
      "id": "USGS-01483700",
      "name": "St Jones River at Dover, DE",
      "state": "DE",
@@ -514,26 +334,6 @@
      "altitude_ft": -0.8,
      "coast_km": 9.8,
      "reason": "gage at -1 ft elevation, 10 km from the coast"
-    },
-    {
-     "id": "USGS-01480025",
-     "name": "White Clay Creek at Stanton, DE",
-     "state": "DE",
-     "lon": -75.6458,
-     "lat": 39.7059,
-     "altitude_ft": -1.1,
-     "coast_km": 7.8,
-     "reason": "gage at -1 ft elevation, 8 km from the coast"
-    },
-    {
-     "id": "USGS-01479000",
-     "name": "White Clay Creek near Newark, DE",
-     "state": "DE",
-     "lon": -75.675,
-     "lat": 39.6992,
-     "altitude_ft": 7.9,
-     "coast_km": 9.0,
-     "reason": "gage at 8 ft elevation, 9 km from the coast"
     },
     {
      "id": "USGS-02301500",
@@ -586,6 +386,16 @@
      "reason": "gage at -1 ft elevation, 9 km from the coast"
     },
     {
+     "id": "USGS-02304517",
+     "name": "Hillsborough R Bl Hannahs Whirl near Sulphur Spgs Fl",
+     "state": "FL",
+     "lon": -82.4424,
+     "lat": 28.0152,
+     "altitude_ft": null,
+     "coast_km": null,
+     "reason": "on the manual list (brackish tidal reach; above 50x all winter)"
+    },
+    {
      "id": "USGS-02304000",
      "name": "Hillsborough R at Fowler Av near Temple Terrace Fl",
      "state": "FL",
@@ -594,6 +404,16 @@
      "altitude_ft": -0.9,
      "coast_km": 15.6,
      "reason": "gage at -1 ft elevation, 16 km from the coast"
+    },
+    {
+     "id": "USGS-02359223",
+     "name": "Jackson River at Ranch Road near Apalachicola, FL",
+     "state": "FL",
+     "lon": -85.0843,
+     "lat": 29.7695,
+     "altitude_ft": null,
+     "coast_km": null,
+     "reason": "on the manual list (coastal brackish river)"
     },
     {
      "id": "USGS-300803081354500",
@@ -766,46 +586,6 @@
      "reason": "USGS also measures salinity here"
     },
     {
-     "id": "USGS-01585075",
-     "name": "Foster Branch near Joppatowne, MD",
-     "state": "MD",
-     "lon": -76.3426,
-     "lat": 39.4085,
-     "altitude_ft": 0.3,
-     "coast_km": 1.5,
-     "reason": "gage at 0 ft elevation, 2 km from the coast"
-    },
-    {
-     "id": "USGS-01649500",
-     "name": "Northeast Branch Anacostia River at Riverdale, MD",
-     "state": "MD",
-     "lon": -76.926,
-     "lat": 38.9603,
-     "altitude_ft": 11.6,
-     "coast_km": 13.0,
-     "reason": "gage at 12 ft elevation, 13 km from the coast"
-    },
-    {
-     "id": "USGS-01651003",
-     "name": "Northwest Branch Anacostia River at Brentwood, MD",
-     "state": "MD",
-     "lon": -76.9562,
-     "lat": 38.949,
-     "altitude_ft": 3.6,
-     "coast_km": 10.3,
-     "reason": "gage at 4 ft elevation, 10 km from the coast"
-    },
-    {
-     "id": "USGS-01579550",
-     "name": "Susquehanna River near Darlington, MD",
-     "state": "MD",
-     "lon": -76.1577,
-     "lat": 39.6261,
-     "altitude_ft": 9.0,
-     "coast_km": 9.9,
-     "reason": "gage at 9 ft elevation, 10 km from the coast"
-    },
-    {
      "id": "USGS-02081094",
      "name": "Roanoke River at Jamesville, NC",
      "state": "NC",
@@ -826,36 +606,6 @@
      "reason": "USGS also measures salinity here; gage at -1 ft elevation, 3 km from the coast"
     },
     {
-     "id": "USGS-01467150",
-     "name": "Cooper River at Haddonfield Nj",
-     "state": "NJ",
-     "lon": -75.0214,
-     "lat": 39.9031,
-     "altitude_ft": 7.6,
-     "coast_km": 6.6,
-     "reason": "gage at 8 ft elevation, 7 km from the coast"
-    },
-    {
-     "id": "USGS-01408029",
-     "name": "Manasquan River near Allenwood Nj",
-     "state": "NJ",
-     "lon": -74.1222,
-     "lat": 40.1467,
-     "altitude_ft": -1.1,
-     "coast_km": 8.9,
-     "reason": "gage at -1 ft elevation, 9 km from the coast"
-    },
-    {
-     "id": "USGS-01467005",
-     "name": "Nb Rancocas C at Iron Works Park at Mount Holly Nj",
-     "state": "NJ",
-     "lon": -74.7814,
-     "lat": 39.9931,
-     "altitude_ft": 0.0,
-     "coast_km": 20.8,
-     "reason": "gage at 0 ft elevation, 21 km from the coast"
-    },
-    {
      "id": "USGS-01477120",
      "name": "Raccoon Creek near Swedesboro Nj",
      "state": "NJ",
@@ -866,32 +616,12 @@
      "reason": "gage at -1 ft elevation, 12 km from the coast"
     },
     {
-     "id": "USGS-01467081",
-     "name": "South Branch Pennsauken Creek at Cherry Hill Nj",
-     "state": "NJ",
-     "lon": -75.0011,
-     "lat": 39.9417,
-     "altitude_ft": 6.8,
-     "coast_km": 6.8,
-     "reason": "gage at 7 ft elevation, 7 km from the coast"
-    },
-    {
      "id": "USGS-08405400",
      "name": "Black River at Harkey Crossing near Malaga, NM",
      "state": "NM",
      "lon": -104.1966,
      "lat": 32.2359,
      "altitude_ft": 3127.6,
-     "coast_km": null,
-     "reason": "USGS also measures salinity here"
-    },
-    {
-     "id": "USGS-01302020",
-     "name": "Bronx River at Ny Botanical Garden at Bronx Ny",
-     "state": "NY",
-     "lon": -73.8744,
-     "lat": 40.8623,
-     "altitude_ft": 49.9,
      "coast_km": null,
      "reason": "USGS also measures salinity here"
     },
@@ -926,14 +656,14 @@
      "reason": "gage at 10 ft elevation, 4 km from the coast"
     },
     {
-     "id": "USGS-01474500",
-     "name": "Schuylkill River at Philadelphia, PA",
-     "state": "PA",
-     "lon": -75.1885,
-     "lat": 39.9678,
-     "altitude_ft": 4.5,
-     "coast_km": 4.9,
-     "reason": "gage at 5 ft elevation, 5 km from the coast"
+     "id": "USGS-02110755",
+     "name": "Aiw at Briarcliffe Acres at N. Myrtle Beach, SC",
+     "state": "SC",
+     "lon": -78.7531,
+     "lat": 33.7985,
+     "altitude_ft": null,
+     "coast_km": null,
+     "reason": "on the manual list (Atlantic Intracoastal Waterway)"
     },
     {
      "id": "USGS-02110760",
@@ -994,16 +724,6 @@
      "altitude_ft": 4.2,
      "coast_km": 10.4,
      "reason": "gage at 4 ft elevation, 10 km from the coast"
-    },
-    {
-     "id": "USGS-12100490",
-     "name": "White River at R Street near Auburn, WA",
-     "state": "WA",
-     "lon": -122.2079,
-     "lat": 47.2748,
-     "altitude_ft": 3.7,
-     "coast_km": 12.7,
-     "reason": "gage at 4 ft elevation, 13 km from the coast"
     }
    ]
   }
