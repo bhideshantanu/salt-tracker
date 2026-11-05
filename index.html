@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Salt Season Tracker</title>
-<meta name="description" content="Daily road-salt pulses in U.S. streams, from USGS specific conductance sensors, compared with each stream's own summer level.">
+<meta name="description" content="Daily road-salt pulses in U.S. streams, from USGS specific conductance sensors, compared with each stream's own summer level. Replay past winters, zoom to a state, and see which streams stay salty between storms.">
 <style>
   :root {
     color-scheme: light;
@@ -17,11 +17,18 @@
     --axis: #c3c2b7;
     --border: rgba(11, 11, 11, 0.10);
     --land: #f1f0ec;
+    --land-faded: #f5f4f1;
     --state-line: #d9d7cf;
     --normal: #c9c8c1;
     --c1: #86b6ef;
     --c2: #2a78d6;
     --c3: #104281;
+    --s1: #86b6ef;
+    --s2: #5598e7;
+    --s3: #2a78d6;
+    --s4: #104281;
+    --flush: #2a78d6;
+    --lowflow: #eb6834;
     --wash: rgba(11, 11, 11, 0.05);
     --banner: #fff4d6;
     --banner-ink: #5a4300;
@@ -38,11 +45,18 @@
       --axis: #383835;
       --border: rgba(255, 255, 255, 0.10);
       --land: #222220;
+      --land-faded: #1e1e1d;
       --state-line: #34342f;
       --normal: #4b4b46;
       --c1: #256abf;
       --c2: #5598e7;
       --c3: #b7d3f6;
+      --s1: #256abf;
+      --s2: #3987e5;
+      --s3: #6da7ec;
+      --s4: #b7d3f6;
+      --flush: #3987e5;
+      --lowflow: #d95926;
       --wash: rgba(255, 255, 255, 0.06);
       --banner: #3a3000;
       --banner-ink: #ffe9a8;
@@ -59,11 +73,18 @@
     --axis: #383835;
     --border: rgba(255, 255, 255, 0.10);
     --land: #222220;
+    --land-faded: #1e1e1d;
     --state-line: #34342f;
     --normal: #4b4b46;
     --c1: #256abf;
     --c2: #5598e7;
     --c3: #b7d3f6;
+    --s1: #256abf;
+    --s2: #3987e5;
+    --s3: #6da7ec;
+    --s4: #b7d3f6;
+    --flush: #3987e5;
+    --lowflow: #d95926;
     --wash: rgba(255, 255, 255, 0.06);
     --banner: #3a3000;
     --banner-ink: #ffe9a8;
@@ -90,73 +111,124 @@
   }
   h1 {
     font-size: clamp(26px, 4.2vw, 40px); line-height: 1.15; margin: 0 0 10px;
-    font-weight: 650; letter-spacing: -0.01em; max-width: 28ch; text-wrap: balance;
+    font-weight: 650; letter-spacing: -0.01em; max-width: 30ch; text-wrap: balance;
   }
   .dek { color: var(--ink-2); margin: 0 0 8px; max-width: 70ch; font-size: 16px; }
   .byline { font-size: 14px; color: var(--muted); margin: 0 0 22px; }
   .byline a { color: var(--ink-2); font-weight: 600; text-decoration: none; }
   .byline a:hover { text-decoration: underline; }
 
-  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
-  .stat {
-    flex: 1 1 160px; background: var(--surface); border: 1px solid var(--border);
-    border-radius: 10px; padding: 12px 14px;
-  }
-  .stat .label { font-size: 13px; color: var(--ink-2); }
-  .stat .value { font-size: 28px; font-weight: 600; margin-top: 2px; }
-  .stat .sub { font-size: 12px; color: var(--muted); }
-
   .controls {
-    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    display: flex; align-items: center; gap: 10px 12px; flex-wrap: wrap;
     margin: 0 0 12px;
   }
-  button {
+  .ctl-label { font-size: 13px; color: var(--ink-2); }
+  button, select {
     font: inherit; font-size: 14px; color: var(--ink); background: var(--surface);
-    border: 1px solid var(--border); border-radius: 8px; padding: 7px 14px;
+    border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px;
     cursor: pointer;
   }
+  select { padding-right: 8px; max-width: 100%; }
   button:hover { background: var(--wash); }
-  button:focus-visible, input:focus-visible { outline: 2px solid var(--c2); outline-offset: 2px; }
+  button:focus-visible, input:focus-visible, select:focus-visible, th:focus-visible, .ev:focus-visible {
+    outline: 2px solid var(--c2); outline-offset: 2px;
+  }
+  .seg { display: inline-flex; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; max-width: 100%; }
+  .seg button { border: 0; border-radius: 0; background: var(--surface); white-space: nowrap; }
+  .seg button:hover { background: color-mix(in srgb, var(--surface) 92%, var(--ink)); }
+  .ctl { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
   .slider { flex: 1 1 260px; display: flex; align-items: center; gap: 10px; }
-  .slider input { flex: 1; accent-color: var(--c2); }
-  .date-label { font-weight: 600; min-width: 110px; font-variant-numeric: tabular-nums; }
-  .spacer { flex: 1 1 0; }
+  .slider input { flex: 1; accent-color: var(--c2); min-width: 120px; }
+  .date-label { font-weight: 600; min-width: 112px; font-variant-numeric: tabular-nums; }
+  .hint-line { font-size: 14px; color: var(--ink-2); margin: -4px 0 14px; display: none; }
+  .hint-line.on { display: block; }
+  .hint-line button { padding: 3px 9px; font-size: 13px; margin-left: 4px; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 8px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .stat .label { font-size: 13px; color: var(--ink-2); }
+  .stat .value { font-size: 28px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .stat .sub { font-size: 12px; color: var(--muted); }
+  .rank-note { font-size: 14px; color: var(--ink-2); margin: 0 0 16px; min-height: 1px; }
 
   .card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
     padding: 16px; margin-bottom: 18px; position: relative;
   }
   .card h2 { font-size: 16px; margin: 0 0 4px; font-weight: 600; }
-  .card .note { font-size: 13px; color: var(--ink-2); margin: 0 0 10px; }
+  .card .note { font-size: 13px; color: var(--ink-2); margin: 0 0 10px; max-width: 80ch; }
+  .card-head { display: flex; gap: 10px 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; margin-bottom: 8px; }
+  .card-head h2 { margin-top: 6px; }
 
-  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--ink-2); margin-bottom: 8px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink-2); margin-bottom: 8px; align-items: center; }
   .legend span { display: inline-flex; align-items: center; gap: 6px; }
   .legend svg { overflow: visible; }
+  .legend .lt { color: var(--ink); font-weight: 600; }
 
-  #map { width: 100%; height: auto; display: block; touch-action: none; }
+  .map-wrap { position: relative; }
+  #map { width: 100%; height: auto; display: block; touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; }
+  #map.dragging { cursor: grabbing; }
+  .zoom { position: absolute; right: 6px; top: 6px; display: flex; flex-direction: column; gap: 6px; }
+  .zoom button { width: 34px; height: 34px; padding: 0; font-size: 18px; line-height: 1; }
+  .map-hint { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
   #chart { width: 100%; display: block; }
 
   .tooltip {
     position: absolute; pointer-events: none; z-index: 5; display: none;
     background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-    padding: 9px 11px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,0.12);
-    min-width: 190px; max-width: 260px;
+    padding: 9px 11px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,0.14);
+    min-width: 200px; max-width: 280px;
   }
-  .tooltip .big { font-size: 18px; font-weight: 650; }
+  .tooltip .big { font-size: 17px; font-weight: 650; }
   .tooltip .name { color: var(--ink-2); margin-top: 2px; }
   .tooltip .meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .tooltip .kv { margin-top: 4px; color: var(--ink-2); font-size: 12px; }
+  .tooltip .kv b { color: var(--ink); font-weight: 600; }
   .tooltip .row { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
   .tooltip .row b { min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; }
   .tooltip .key { width: 12px; height: 3px; border-radius: 2px; display: inline-block; }
 
+  .events { display: grid; gap: 2px; }
+  .ev {
+    display: grid; grid-template-columns: 118px 1fr auto; gap: 4px 14px; align-items: baseline;
+    padding: 8px 8px; border-radius: 8px; cursor: pointer; border: 0; background: none;
+    text-align: left; width: 100%; font-size: 14px;
+  }
+  .ev:hover, .ev.sel { background: var(--wash); }
+  .ev .d { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .ev .w { color: var(--ink-2); }
+  .ev .n { font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+  .ev .n span { color: var(--muted); }
+  .empty-note { color: var(--ink-2); font-size: 14px; padding: 6px 0; }
+
+  .flow-rows { display: grid; gap: 16px; margin-top: 6px; }
+  .flow-row .cap { font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
+  .flow-row .cap b { color: var(--ink); }
+  .fbar { display: flex; gap: 2px; height: 22px; position: relative; }
+  .fbar div { height: 100%; min-width: 2px; }
+  .fbar div:first-child { border-radius: 4px 0 0 4px; }
+  .fbar div:last-child { border-radius: 0 4px 4px 0; }
+  .fbar div:only-child { border-radius: 4px; }
+  .flabels { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13px; color: var(--ink-2); margin-top: 6px; }
+  .flabels span { display: inline-flex; align-items: center; gap: 6px; }
+  .flabels i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .flabels b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--grid); }
-  th { color: var(--ink-2); font-weight: 600; font-size: 13px; }
+  th { color: var(--ink-2); font-weight: 600; font-size: 13px; vertical-align: bottom; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--ink); }
+  th[aria-sort="descending"]::after { content: " ↓"; }
+  th[aria-sort="ascending"]::after { content: " ↑"; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-  tbody tr { cursor: pointer; }
-  tbody tr:hover { background: var(--wash); }
+  td.muted { color: var(--muted); }
+  #rankTable tbody tr { cursor: pointer; }
+  #rankTable tbody tr:hover, #rankTable tbody tr.sel { background: var(--wash); }
   td a { color: inherit; }
   .table-scroll { overflow-x: auto; }
+  .table-foot { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 10px; font-size: 13px; color: var(--muted); }
   details { margin-top: 10px; font-size: 14px; }
   details summary { cursor: pointer; color: var(--ink-2); }
 
@@ -165,40 +237,83 @@
   .method li { margin-bottom: 6px; }
   footer { font-size: 13px; color: var(--muted); margin-top: 8px; }
   footer a, .method a { color: var(--ink-2); }
-  .empty { padding: 40px 0; text-align: center; color: var(--ink-2); }
+
+  @media (max-width: 600px) {
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .stat .value { font-size: 22px; }
+    .zoom { right: 2px; top: 2px; gap: 4px; }
+    .zoom button { width: 28px; height: 28px; font-size: 15px; }
+    .seg { display: grid; grid-template-columns: repeat(2, 1fr); width: 100%; }
+    #rankSeg { grid-template-columns: repeat(3, 1fr); }
+    .seg button { padding: 7px 6px; font-size: 13px; }
+    .card-head { margin-bottom: 10px; }
+    .ev { grid-template-columns: 1fr auto; }
+    .ev .w { grid-column: 1 / -1; grid-row: 2; }
+    .card { padding: 14px 12px; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="banner" id="demoBanner">Synthetic test data for previewing the layout. These are not real measurements.</div>
 
-  <p class="kicker">Salt season tracker</p>
+  <p class="kicker" id="kicker">Salt season tracker</p>
   <h1 id="headline">Loading stream salinity…</h1>
   <p class="dek" id="dek">Daily specific conductance at USGS stream sensors across the lower 48 states, compared with each stream's own May–October level. In winter, road salt is the main reason streams spike.</p>
   <p class="byline">By <a href="https://shantanubhide.com/">Shantanu Bhide</a> · Updated every morning with USGS data</p>
 
+  <div class="controls">
+    <span class="ctl" id="seasonBox" hidden>
+      <label class="ctl-label" for="season">Season</label>
+      <select id="season"></select>
+    </span>
+    <span class="ctl">
+      <label class="ctl-label" for="state">Area</label>
+      <select id="state"><option value="">All states</option></select>
+    </span>
+    <span class="spacer" style="flex:1 1 0"></span>
+    <button id="save" type="button">Save image</button>
+  </div>
+  <p class="hint-line" id="earlyHint"></p>
+
   <div class="stats" id="stats"></div>
+  <p class="rank-note" id="rankNote"></p>
 
   <div class="controls">
-    <button id="play" type="button" aria-label="Play the last 150 days">▶ Play</button>
+    <button id="play" type="button">▶ Play</button>
     <div class="slider">
       <label for="day" class="date-label" id="dateLabel">—</label>
       <input id="day" type="range" min="0" max="0" value="0" aria-describedby="dateLabel">
     </div>
-    <button id="save" type="button">Save image</button>
   </div>
 
   <div class="card" id="mapCard">
-    <h2>How salty is each stream compared with its summer level?</h2>
+    <div class="card-head">
+      <h2 id="mapTitle">How salty is each stream compared with its summer level?</h2>
+      <div class="seg" role="group" aria-label="What the map shows" id="viewSeg">
+        <button type="button" data-view="today" aria-pressed="true">Today</button>
+        <button type="button" data-view="peak" aria-pressed="false">Season peak</button>
+        <button type="button" data-view="days" aria-pressed="false">Days at 3×+</button>
+        <button type="button" data-view="between" aria-pressed="false">Between storms</button>
+      </div>
+    </div>
     <div class="legend" id="legend"></div>
-    <svg id="map" viewBox="0 0 975 610" role="img" aria-label="Map of U.S. stream sensors colored by salinity compared with normal"></svg>
+    <div class="map-wrap">
+      <svg id="map" viewBox="0 0 975 610" role="img" aria-label="Map of U.S. stream sensors colored by salinity compared with normal"></svg>
+      <div class="zoom">
+        <button type="button" id="zin" aria-label="Zoom in">+</button>
+        <button type="button" id="zout" aria-label="Zoom out">−</button>
+        <button type="button" id="zreset" aria-label="Show the whole country" title="Whole country">⤢</button>
+      </div>
+    </div>
+    <p class="map-hint" id="mapHint">Hover a dot for details, click it for the USGS page. Drag to pan; zoom with + and −, a pinch, or Ctrl/⌘ + scroll.</p>
     <div class="tooltip" id="mapTip"></div>
   </div>
 
   <div class="card" id="chartCard">
-    <h2>Share of reporting sensors above their summer level</h2>
-    <p class="note">Each column is one day. Click a column to show that day on the map.</p>
-    <div id="chartWrap"><svg id="chart" height="240"></svg></div>
+    <h2 id="chartTitle">Share of reporting sensors above their summer level</h2>
+    <p class="note">Each column is one day. Labels mark the biggest salt storms. Click a column to show that day on the map.</p>
+    <div id="chartWrap"><svg id="chart" height="270"></svg></div>
     <div class="tooltip" id="chartTip"></div>
     <details>
       <summary>Show daily counts as a table</summary>
@@ -206,20 +321,48 @@
     </details>
   </div>
 
-  <div class="card">
-    <h2 id="topTitle">Saltiest streams</h2>
-    <p class="note">Ranked by how far each stream sits above its own summer level. Click a row to find it on the map.</p>
-    <div class="table-scroll"><table id="topTable"></table></div>
+  <div class="card" id="stormCard">
+    <h2 id="stormTitle">Salt storms</h2>
+    <p class="note">Days when many sensors in one region jumped to 3× their summer level or more within a day or two, usually right after snow or ice and road salting. Click one to see it on the map.</p>
+    <div class="events" id="events"></div>
+  </div>
+
+  <div class="card" id="flowCard">
+    <h2>Flush or low-flow concentration?</h2>
+    <p class="note">For salty readings (3× or more) at sensors that also measure streamflow. <b>Higher-than-typical flow</b> usually means rain or snowmelt washing salt off roads. <b>Lower-than-typical flow</b> means less water to dilute it, or salty groundwater feeding the stream, a sign of salt stored from earlier storms.</p>
+    <div class="flow-rows" id="flowRows"></div>
+    <div class="tooltip" id="flowTip"></div>
+  </div>
+
+  <div class="card" id="rankCard">
+    <div class="card-head">
+      <h2 id="rankTitle">Rankings</h2>
+      <div class="seg" role="group" aria-label="Which ranking" id="rankSeg">
+        <button type="button" data-tab="today" aria-pressed="true">Today</button>
+        <button type="button" data-tab="streams" aria-pressed="false">Season: streams</button>
+        <button type="button" data-tab="states" aria-pressed="false">Season: states</button>
+      </div>
+    </div>
+    <p class="note" id="rankDesc"></p>
+    <div class="table-scroll"><table id="rankTable"></table></div>
+    <div class="table-foot">
+      <button id="showAll" type="button" hidden>Show all</button>
+      <button id="download" type="button">Download CSV</button>
+      <span id="rankCount"></span>
+    </div>
   </div>
 
   <div class="card method">
     <h2>How this works</h2>
     <ul>
       <li><b>Measure.</b> Specific conductance (µS/cm at 25 °C) tracks dissolved salts. Sodium chloride from road salt raises it sharply after snow and ice storms.</li>
-      <li><b>Normal level.</b> Each stream's normal is the median of its daily means from May through October, when roads aren't salted. Streams need at least 60 summer days to be included.</li>
-      <li><b>Comparison.</b> The map shows each day's mean divided by that normal: under 1.5×, 1.5–3×, 3–10×, and 10× or more.</li>
+      <li><b>Normal level.</b> Each stream's normal is the median of its daily means from May through October, when roads aren't salted (for a past winter, the May–October before it). Streams need at least 60 summer days to be included.</li>
+      <li><b>Map views.</b> <i>Today</i> divides each day's mean by that normal. <i>Season peak</i> is the highest ratio since November 1, up to the selected day. <i>Days at 3×+</i> counts the days at 3× or more. <i>Between storms</i> is the low end (25th percentile) of a stream's readings over the same period, which needs at least 14 readings: where a stream sits once storm pulses pass.</li>
+      <li><b>Salt memory.</b> After a pulse of 3× or more, “days back under 1.5×” counts the days from its peak to the first reading below 1.5×. A stream that stays above 1.5× between storms may be fed by salt stored in soil and groundwater.</li>
+      <li><b>Salt storms.</b> A sensor “spikes” when it reaches 3× after two days below 3×. A storm is a day when at least 8 sensors (and at least 3% of those reporting) spike in one region, merged with nearby days and regions. Regions: Northeast (New England and NY), Mid-Atlantic (NJ, PA, DE, MD, DC, VA, WV), Southeast, Midwest, Plains and South Central, and West.</li>
+      <li><b>Flow.</b> Daily mean discharge (parameter 00060) at the same gages, where it is measured. “Typical flow” is the median daily flow over the period shown. Many sensors have no flow gage, and northern gages often skip ice-affected days.</li>
       <li><b>Caveats.</b> Data are provisional and can change. Not every spike is road salt: drought, wastewater, mining and sensor problems can also raise conductance. Tidal and estuary sensors are left out. Conductance is not the same as chloride concentration.</li>
-      <li><b>Data.</b> <a href="https://api.waterdata.usgs.gov/" rel="noopener">USGS Water Data API</a>, daily mean specific conductance (parameter 00095), refreshed every morning. <span id="updated"></span></li>
+      <li><b>Data.</b> <a href="https://api.waterdata.usgs.gov/" rel="noopener">USGS Water Data API</a>, daily mean specific conductance (00095) and discharge (00060), refreshed every morning. Past winters are archived each May. <span id="updated"></span></li>
     </ul>
   </div>
 
@@ -230,15 +373,57 @@
 (() => {
   "use strict";
 
-  // ---- categories: ratio of today's value to the stream's summer normal ----
+  // ---------------------------------------------------------------- constants
+  const MW = 975, MH = 610;
   const CATS = [
-    { key: "normal",   label: "Under 1.5×",  min: 0,   r: 1.9, color: "--normal" },
-    { key: "elevated", label: "1.5–3×",      min: 1.5, r: 3.0, color: "--c1" },
-    { key: "high",     label: "3–10×",       min: 3,   r: 4.1, color: "--c2" },
-    { key: "extreme",  label: "10× or more", min: 10,  r: 5.4, color: "--c3" },
+    { key: "normal",   label: "Under 1.5×",  r: 1.9, color: "--normal" },
+    { key: "elevated", label: "1.5–3×",      r: 3.0, color: "--c1" },
+    { key: "high",     label: "3–10×",       r: 4.1, color: "--c2" },
+    { key: "extreme",  label: "10× or more", r: 5.4, color: "--c3" },
   ];
-  const catOf = (ratio) => (ratio == null ? -1 : ratio >= 10 ? 3 : ratio >= 3 ? 2 : ratio >= 1.5 ? 1 : 0);
+  const catOf = (r) => (r == null || !(r >= 0) ? -1 : r >= 10 ? 3 : r >= 3 ? 2 : r >= 1.5 ? 1 : 0);
+  const DAY_BINS = [
+    { key: "d0", label: "None", r: 1.9, color: "--normal" },
+    { key: "d1", label: "1–2 days", r: 2.8, color: "--s1" },
+    { key: "d2", label: "3–6", r: 3.5, color: "--s2" },
+    { key: "d3", label: "7–13", r: 4.3, color: "--s3" },
+    { key: "d4", label: "14 or more", r: 5.2, color: "--s4" },
+  ];
+  const binOf = (n) => (n >= 14 ? 4 : n >= 7 ? 3 : n >= 3 ? 2 : n >= 1 ? 1 : 0);
 
+  const STATE_NAMES = {
+    AL: "Alabama", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut",
+    DE: "Delaware", DC: "District of Columbia", FL: "Florida", GA: "Georgia", ID: "Idaho", IL: "Illinois",
+    IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland",
+    MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana",
+    NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico", NY: "New York",
+    NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania",
+    RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah",
+    VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming",
+  };
+  const ABBR_OF = Object.fromEntries(Object.entries(STATE_NAMES).map(([a, n]) => [n, a]));
+  const REGIONS = [
+    ["Northeast", "ME NH VT MA RI CT NY"],
+    ["Mid-Atlantic", "NJ PA DE MD DC VA WV"],
+    ["Southeast", "NC SC GA FL AL MS TN KY"],
+    ["Midwest", "OH MI IN IL WI MN IA MO"],
+    ["Plains", "ND SD NE KS OK TX AR LA"],
+    ["West", ""],
+  ];
+  const REGION_OF = {};
+  REGIONS.forEach(([, list], k) => list.split(" ").filter(Boolean).forEach((ab) => { REGION_OF[ab] = k; }));
+  const regionOf = (ab) => (ab in REGION_OF ? REGION_OF[ab] : 5);
+  const SEASON_MONTHS = new Set([11, 12, 1, 2, 3, 4]);
+  const RANK_MIN_SENSORS = 5;
+
+  const VIEWS = {
+    today: { title: "How salty is each stream compared with its summer level?", legend: "Today vs. summer level" },
+    peak: { title: "The highest level each stream has reached this season", legend: "Season peak vs. summer level" },
+    days: { title: "Days each stream spent at 3× its summer level or more", legend: "Days at 3×+" },
+    between: { title: "How salty streams stay between storms", legend: "Between-storm level vs. summer" },
+  };
+
+  // ---------------------------------------------------------------- helpers
   const $ = (id) => document.getElementById(id);
   const svgNS = "http://www.w3.org/2000/svg";
   const el = (tag, attrs = {}, parent) => {
@@ -247,144 +432,606 @@
     if (parent) parent.appendChild(n);
     return n;
   };
+  const h = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
   const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  const fmtInt = (n) => Math.round(n).toLocaleString("en-US");
-  const fmtRatio = (r) => (r >= 10 ? r.toFixed(0) : r.toFixed(1)) + "×";
+  const fmtInt = (n) => (n == null || !isFinite(n) ? "—" : Math.round(n).toLocaleString("en-US"));
+  const fmtRatio = (r) => (r == null || !(r >= 0) ? "—" : (r >= 10 ? r.toFixed(0) : r.toFixed(1)) + "×");
+  const fmtPct = (v) => (v == null || !isFinite(v) ? "—" : (v >= 10 || v === 0 ? v.toFixed(0) : v.toFixed(1)) + "%");
   const fmtDate = (iso, opts = { month: "short", day: "numeric", year: "numeric" }) =>
     new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { ...opts, timeZone: "UTC" });
+  const SHORT = { month: "short", day: "numeric" };
+  const LONG = { month: "long", day: "numeric" };
   const siteUrl = (id) => "https://waterdata.usgs.gov/monitoring-location/" + id.replace(/^USGS-/, "") + "/";
+  const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
+  const median = (arr) => {
+    if (!arr.length) return NaN;
+    const a = Float64Array.from(arr).sort(), m = a.length >> 1;
+    return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+  };
+  const plural = (n, one, many) => fmtInt(n) + " " + (n === 1 ? one : many);
+  function debounce(fn, ms) { let t; return () => { clearTimeout(t); t = setTimeout(fn, ms); }; }
 
-  let data, states, ratios, cats, summary, day = 0, playing = null, highlighted = -1;
-  let circles = [], layers = [], colors = {};
+  // ---------------------------------------------------------------- state
+  let statesGeo, liveRaw, seasonsList = [];
+  const cache = {};
+  let DS = null;               // prepared dataset on screen
+  let seasonId = "live";
+  let view = "today";
+  let scopeAb = "";
+  let scopeIdx = [];           // site indices in the selected state (or all)
+  let day = 0;
+  let M = null;                // per-site metrics for the season range up to `day`
+  let zoomV = { x0: 0, y0: 0, k: 1 };
+  let highlighted = -1;
+  let playing = null;
+  let rankTab = "today", showAllRows = false;
+  const rankSort = { today: ["ratio", -1], streams: ["peak", -1], states: ["rank", 1] };
+  let colors = {};
+  let circles = [], layers = [], fadedLayer = null;
 
+  const params = new URLSearchParams(location.search);
+
+  // ---------------------------------------------------------------- loading
   Promise.all([
     fetch("assets/states.json").then((r) => r.json()),
-    fetch("data/salt.json", { cache: "no-cache" }).then((r) => r.json()),
-  ]).then(([s, d]) => {
-    states = s; data = d;
-    if (!data.sites || !data.sites.length) throw new Error("No sites in data file");
-    prepare();
-    buildMap();
-    buildLegend();
-    buildDailyTable();
-    const slider = $("day");
-    slider.max = data.dates.length - 1;
-    day = defaultDay();
-    slider.value = day;
-    slider.addEventListener("input", () => { stop(); setDay(+slider.value); });
-    $("play").addEventListener("click", togglePlay);
-    $("save").addEventListener("click", saveImage);
-    window.addEventListener("resize", debounce(drawChart, 150));
-    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", refreshColors);
-    new MutationObserver(refreshColors).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    if (data.demo) $("demoBanner").classList.add("on");
-    $("updated").textContent = data.generated_utc ? "Last updated " + new Date(data.generated_utc).toUTCString().replace(" GMT", " UTC") + "." : "";
-    refreshColors();
+    fetch("data/salt.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error("data/salt.json " + r.status); return r.json(); }),
+    fetch("data/seasons.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : { seasons: [] })).catch(() => ({ seasons: [] })),
+  ]).then(([geo, live, idx]) => {
+    statesGeo = geo; liveRaw = live;
+    if (!live.sites || !live.sites.length) throw new Error("No sites in data file");
+    // a demo archive only belongs next to demo live data
+    seasonsList = (idx.seasons || []).filter((s) => s.file && (!!s.demo === !!live.demo));
+    buildStaticMap();
+    setupControls();
+    refreshColors(false);
+    const wantSeason = params.get("season");
+    const wantView = params.get("view");
+    if (wantView && VIEWS[wantView]) setView(wantView, false);
+    const st = (params.get("state") || "").toUpperCase();
+    if (STATE_NAMES[st]) scopeAb = st;
+    return loadSeason(seasonsList.some((s) => s.id === wantSeason) ? wantSeason : "live", { initial: true });
   }).catch((err) => {
     $("headline").textContent = "The data didn't load.";
     $("dek").textContent = "Try refreshing the page. (" + err.message + ")";
+    console.error(err);
   });
 
-  function prepare() {
-    const n = data.dates.length;
-    ratios = data.sites.map((s) => s.sc.map((v) => (v == null ? null : v / s.base)));
-    cats = ratios.map((row) => row.map(catOf));
-    summary = data.dates.map((date, d) => {
-      const c = [0, 0, 0, 0]; let reporting = 0;
-      for (let i = 0; i < cats.length; i++) { const k = cats[i][d]; if (k >= 0) { c[k]++; reporting++; } }
-      return { date, reporting, counts: c };
-    });
-    // drop trailing days nobody has reported yet
-    data.n = n;
+  function loadSeason(id, opts = {}) {
+    stop();
+    seasonId = id;
+    $("season").value = id;
+    if (cache[id]) { useDataset(cache[id], opts); return Promise.resolve(); }
+    if (id === "live") { cache.live = prepare(liveRaw, "live"); useDataset(cache.live, opts); return Promise.resolve(); }
+    const meta = seasonsList.find((s) => s.id === id);
+    $("headline").textContent = "Loading " + meta.label + "…";
+    $("season").disabled = true;
+    return fetch(meta.file, { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(meta.file + " " + r.status); return r.json(); })
+      .then((raw) => { cache[id] = prepare(raw, id, meta.label); useDataset(cache[id], opts); })
+      .catch((err) => { $("headline").textContent = "That season didn't load."; $("dek").textContent = "Try again or pick another season. (" + err.message + ")"; })
+      .finally(() => { $("season").disabled = false; });
+  }
+
+  // ---------------------------------------------------------------- data prep
+  function prepare(raw, id, label) {
+    const n = raw.dates.length, sites = raw.sites, N = sites.length;
+    const R = sites.map((s) => { const a = new Float32Array(n); for (let d = 0; d < n; d++) { const v = s.sc[d]; a[d] = v == null ? NaN : v / s.base; } return a; });
+    const Q = sites.map((s) => (s.q ? Float32Array.from(s.q, (v) => (v == null ? NaN : v)) : null));
+    const qmed = Q.map((q) => { if (!q) return NaN; const v = []; for (const x of q) if (x > 0) v.push(x); return v.length >= 20 ? median(v) : NaN; });
+    const region = sites.map((s) => regionOf(s.state));
+    const months = raw.dates.map((d) => +d.slice(5, 7));
+    // the salt season starts on the most recent November 1
+    const last = raw.dates[n - 1], ly = +last.slice(0, 4), lm = +last.slice(5, 7);
+    const nov1 = (lm >= 11 ? ly : ly - 1) + "-11-01";
+    let s0 = raw.dates.findIndex((d) => d >= nov1); if (s0 < 0) s0 = 0;
+    const byState = {};
+    sites.forEach((s, i) => { if (s.state) (byState[s.state] = byState[s.state] || []).push(i); });
+    const hasFlow = Q.some((q) => q);
+    const ds = { id, label: label || "This season", raw, dates: raw.dates, sites, n, N, R, Q, qmed, region, months, s0, byState, hasFlow, archive: id !== "live" };
+    ds.events = detectStorms(ds);
+    ds.eventByDay = new Int16Array(n).fill(-1);
+    ds.events.forEach((e, k) => { for (let d = e.d0; d <= e.d1; d++) if (ds.eventByDay[d] < 0 || ds.events[ds.eventByDay[d]].sites.size < e.sites.size) ds.eventByDay[d] = k; });
+    return ds;
+  }
+
+  // Storm detector: new 3x spikes per region per day, merged into events.
+  function detectStorms(ds) {
+    const { R, n, N, region, months } = ds;
+    const NR = REGIONS.length;
+    const spikes = Array.from({ length: n }, () => Array.from({ length: NR }, () => []));
+    const reporting = Array.from({ length: n }, () => new Int32Array(NR));
+    for (let i = 0; i < N; i++) {
+      const r = R[i], g = region[i];
+      for (let d = 0; d < n; d++) {
+        if (!(r[d] >= 0)) continue;
+        reporting[d][g]++;
+        if (d < 2 || !SEASON_MONTHS.has(months[d]) || !(r[d] >= 3)) continue;
+        const p1 = r[d - 1], p2 = r[d - 2];
+        if (p1 >= 3 || p2 >= 3 || (isNaN(p1) && isNaN(p2))) continue;
+        spikes[d][g].push(i);
+      }
+    }
+    const regional = [];
+    for (let g = 0; g < NR; g++) {
+      let cur = null;
+      for (let d = 0; d < n; d++) {
+        const c = spikes[d][g].length;
+        const isEvent = c >= Math.max(8, 0.03 * reporting[d][g]);
+        if (!isEvent) continue;
+        if (cur && d - cur.d1 <= 2) {
+          cur.d1 = d; spikes[d][g].forEach((i) => cur.sites.add(i));
+          if (c > cur.peakCount) { cur.peakCount = c; cur.peakDay = d; }
+        } else {
+          cur = { g, d0: d, d1: d, peakDay: d, peakCount: c, sites: new Set(spikes[d][g]) };
+          regional.push(cur);
+        }
+      }
+    }
+    regional.sort((a, b) => a.d0 - b.d0);
+    const events = [];
+    for (const re of regional) {
+      const e = events.find((x) => re.d0 <= x.d1 + 1 && re.d1 >= x.d0 - 1);
+      if (e) {
+        e.d0 = Math.min(e.d0, re.d0); e.d1 = Math.max(e.d1, re.d1);
+        re.sites.forEach((i) => e.sites.add(i)); e.parts.push(re);
+      } else events.push({ d0: re.d0, d1: re.d1, sites: new Set(re.sites), parts: [re] });
+    }
+    for (const e of events) {
+      // the day with the most new spikes across all regions
+      let best = e.d0, bestC = -1;
+      for (let d = e.d0; d <= e.d1; d++) { let c = 0; for (let g = 0; g < NR; g++) c += spikes[d][g].length; if (c > bestC) { bestC = c; best = d; } }
+      e.peakDay = best;
+      const byRegion = new Array(NR).fill(0);
+      e.sites.forEach((i) => byRegion[region[i]]++);
+      e.regions = byRegion.map((c, g) => [g, c]).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]);
+    }
+    return events;
+  }
+
+  // Per-site season metrics over days a..d (inclusive).
+  function computeMetrics(a, d) {
+    const { R, Q, qmed, N } = DS;
+    const peak = new Float32Array(N).fill(NaN), peakDay = new Int16Array(N).fill(-1);
+    const n15 = new Uint16Array(N), n3 = new Uint16Array(N), n10 = new Uint16Array(N), nobs = new Uint16Array(N);
+    const n3hi = new Uint16Array(N), n3lo = new Uint16Array(N);
+    const between = new Float32Array(N).fill(NaN), recMed = new Float32Array(N).fill(NaN);
+    const open = new Int16Array(N).fill(-1), qPeak = new Float32Array(N).fill(NaN);
+    const recs = new Array(N);
+    const buf = new Float64Array(d - a + 1);
+    for (let i = 0; i < N; i++) {
+      const r = R[i], q = Q[i], qm = qmed[i];
+      let k = 0, state = 0, pIdx = -1, pVal = 0, below3 = false;
+      const list = [];
+      for (let t = a; t <= d; t++) {
+        const v = r[t];
+        if (!(v >= 0)) continue;
+        buf[k++] = v;
+        if (!(v <= peak[i])) { peak[i] = v; peakDay[i] = t; }
+        if (v >= 1.5) n15[i]++;
+        if (v >= 3) {
+          n3[i]++;
+          if (v >= 10) n10[i]++;
+          const qv = q ? q[t] : NaN;
+          if (qv > 0 && qm > 0) { if (qv >= qm) n3hi[i]++; else n3lo[i]++; }
+        }
+        // salt memory: days from a pulse's peak back under 1.5x
+        if (state === 0) {
+          if (v >= 3) { state = 1; pIdx = t; pVal = v; below3 = false; }
+        } else if (v >= 3) {
+          if (below3 || v > pVal) { pIdx = t; pVal = v; below3 = false; }
+        } else if (v < 1.5) {
+          list.push(t - pIdx); state = 0;
+        } else below3 = true;
+      }
+      nobs[i] = k;
+      if (state === 1) open[i] = d - pIdx;
+      recs[i] = list;
+      if (list.length) recMed[i] = median(list);
+      if (k >= 14) {
+        const s = buf.subarray(0, k).slice().sort();
+        const pos = 0.25 * (k - 1), lo = Math.floor(pos);
+        between[i] = s[lo] + (s[Math.min(k - 1, lo + 1)] - s[lo]) * (pos - lo);
+      }
+      if (peakDay[i] >= 0 && q && qm > 0 && q[peakDay[i]] > 0) qPeak[i] = q[peakDay[i]] / qm;
+    }
+    return { ds: DS, a, d, peak, peakDay, n15, n3, n10, nobs, n3hi, n3lo, between, recMed, open, qPeak, recs };
+  }
+
+  function seasonRange(d = day) {
+    const a = d >= DS.s0 ? DS.s0 : 0;
+    return [a, d];
+  }
+
+  function flowClass(i, d) {
+    const q = DS.Q[i], qm = DS.qmed[i];
+    if (!q || !(q[d] > 0) || !(qm > 0)) return 0;
+    return q[d] >= qm ? 1 : 2;
+  }
+
+  // ---------------------------------------------------------------- dataset on screen
+  function useDataset(ds, opts = {}) {
+    DS = ds;
+    $("demoBanner").classList.toggle("on", !!ds.raw.demo);
+    $("updated").textContent = ds.raw.generated_utc ? (ds.archive ? ds.label + " archived " : "Last updated ") + new Date(ds.raw.generated_utc).toUTCString().replace(" GMT", " UTC") + "." : "";
+    $("kicker").textContent = ds.archive ? "Salt season tracker · " + ds.label : "Salt season tracker";
+    buildCircles();
+    fillStateSelect();
+    const slider = $("day");
+    slider.max = ds.n - 1;
+    let d0 = defaultDay();
+    if (ds.archive && opts.pickStorm !== false && view === "today" && ds.events.length) {
+      d0 = [...ds.events].sort((x, y) => y.sites.size - x.sites.size)[0].peakDay;
+    }
+    if (scopeAb && !ds.byState[scopeAb]) scopeAb = "";
+    day = d0;
+    M = computeMetrics(...seasonRange(d0));
+    setScope(scopeAb, { animate: !opts.initial, keepDay: true });
+    setDay(d0, true);
+    updateEarlyHint();
   }
 
   function defaultDay() {
-    const max = Math.max(...summary.map((s) => s.reporting));
-    for (let d = summary.length - 1; d >= 0; d--) if (summary[d].reporting >= 0.5 * max) return d;
-    return summary.length - 1;
+    if (DS.archive) return DS.n - 1;
+    const counts = DS.dates.map((_, d) => { let c = 0; for (let i = 0; i < DS.N; i++) if (DS.R[i][d] >= 0) c++; return c; });
+    const max = Math.max(...counts);
+    for (let d = DS.n - 1; d >= 0; d--) if (counts[d] >= 0.5 * max) return d;
+    return DS.n - 1;
   }
 
-  // ------------------------------------------------------------------ map
-  function buildMap() {
+  function updateEarlyHint() {
+    const box = $("earlyHint"); box.replaceChildren();
+    const past = seasonsList[0];
+    const early = !DS.archive && past && DS.n - 1 - DS.s0 < 21 && DS.s0 > 0;
+    box.classList.toggle("on", !!early);
+    if (!early) return;
+    box.append(document.createTextNode("This salt season has just started. "));
+    const b = h("button", "", "Replay " + past.label.replace("Winter", "winter"));
+    b.type = "button"; b.addEventListener("click", () => loadSeason(past.id).then(syncUrl));
+    box.append(b);
+  }
+
+  // ---------------------------------------------------------------- scope
+  function fillStateSelect() {
+    const sel = $("state"), keep = scopeAb;
+    sel.replaceChildren(new Option("All states", ""));
+    Object.keys(DS.byState).sort((a, b) => STATE_NAMES[a].localeCompare(STATE_NAMES[b])).forEach((ab) => {
+      sel.append(new Option(STATE_NAMES[ab] + " (" + DS.byState[ab].length + ")", ab));
+    });
+    sel.value = keep;
+  }
+
+  function setScope(ab, opts = {}) {
+    scopeAb = ab;
+    scopeIdx = ab ? DS.byState[ab] || [] : DS.sites.map((_, i) => i);
+    $("state").value = ab;
+    DS.sum = scopeSummary();
+    const sp = $("map").querySelector("#selState");
+    const path = ab ? $("map").querySelector(`.states path[data-ab="${ab}"]`) : null;
+    if (path) { sp.setAttribute("d", path.getAttribute("d")); sp.setAttribute("visibility", "visible"); }
+    else sp.setAttribute("visibility", "hidden");
+    $("map").querySelectorAll(".states path").forEach((p) => p.setAttribute("fill", ab && p.dataset.ab !== ab ? colors.landFaded : colors.land));
+    highlighted = -1;
+    if (opts.animate !== false) zoomToScope(path); else { if (path) zoomToScope(path, true); else setView_(zoomV = { x0: 0, y0: 0, k: 1 }); }
+    if (!opts.keepDay) setDay(day, true);
+  }
+
+  function scopeSummary() {
+    const { R, n } = DS;
+    return DS.dates.map((date, d) => {
+      const c = [0, 0, 0, 0]; let reporting = 0;
+      for (const i of scopeIdx) { const k = catOf(R[i][d]); if (k >= 0) { c[k]++; reporting++; } }
+      return { date, reporting, counts: c };
+    });
+  }
+
+  function scopeName(plural_ = true) {
+    if (!scopeAb) return plural_ ? "U.S. streams" : "U.S. stream";
+    return STATE_NAMES[scopeAb] + (plural_ ? " streams" : " stream");
+  }
+
+  // ---------------------------------------------------------------- map
+  function buildStaticMap() {
     const map = $("map");
     const g = el("g", { class: "states" }, map);
-    for (const st of states.states) el("path", { d: st.d, "data-name": st.name }, g);
-    layers = CATS.map((c) => el("g", { class: "layer-" + c.key }, map));
-    circles = data.sites.map((s) => el("circle", { cx: s.x, cy: s.y, r: 0 }));
-    const ring = el("circle", { id: "hl", r: 9, fill: "none", "stroke-width": 2, visibility: "hidden" }, map);
+    for (const st of statesGeo.states) {
+      el("path", { d: st.d, "data-ab": ABBR_OF[st.name] || "", "vector-effect": "non-scaling-stroke" }, g);
+    }
+    el("path", { id: "selState", fill: "none", "stroke-width": 1.6, "vector-effect": "non-scaling-stroke", visibility: "hidden", "stroke-linejoin": "round" }, map);
+    fadedLayer = el("g", { class: "faded", opacity: 0.28 }, map);
+    layers = [0, 1, 2, 3, 4].map((k) => el("g", { class: "layer-" + k }, map));
+    el("circle", { id: "hl", r: 9, fill: "none", "stroke-width": 2, "vector-effect": "non-scaling-stroke", visibility: "hidden" }, map);
+    setupMapEvents();
+  }
 
-    const tip = $("mapTip");
+  function buildCircles() {
+    circles.forEach((c) => c.remove());
+    circles = DS.sites.map((s) => el("circle", { cx: s.x, cy: s.y, r: 0, "vector-effect": "non-scaling-stroke" }));
+  }
+
+  // value and category of site i in the current view
+  function viewValue(i) {
+    if (view === "today") return DS.R[i][day];
+    if (!M.nobs[i]) return NaN;
+    if (view === "peak") return M.peak[i];
+    if (view === "days") return M.n3[i];
+    return M.between[i];
+  }
+  function viewCat(i) {
+    const v = viewValue(i);
+    if (view === "days") return M.nobs[i] ? binOf(v) : -1;
+    return catOf(v);
+  }
+  const viewScale = () => (view === "days" ? DAY_BINS : CATS);
+
+  function paintMap() {
+    if (!DS || !M || M.ds !== DS) return;
+    const scale = viewScale(), inScope = scopeAb ? new Uint8Array(DS.N) : null;
+    if (inScope) for (const i of scopeIdx) inScope[i] = 1;
+    const shrink = Math.pow(zoomV.k, -0.6) * dotScale();
+    for (let i = 0; i < circles.length; i++) {
+      const c = circles[i], k = viewCat(i);
+      if (k < 0) { if (c.parentNode) c.remove(); continue; }
+      const cat = scale[k];
+      c.setAttribute("r", (cat.r * shrink).toFixed(3));
+      c.setAttribute("fill", colors[cat.color]);
+      c.setAttribute("stroke", colors.surface);
+      c.setAttribute("stroke-width", k === 0 ? 0.6 : 1.1);
+      const target = inScope && !inScope[i] ? fadedLayer : layers[k];
+      if (c.parentNode !== target) target.appendChild(c);
+    }
+    const g = $("map").querySelector(".states");
+    g.setAttribute("stroke", colors.stateLine); g.setAttribute("stroke-width", 0.8); g.setAttribute("stroke-linejoin", "round");
+    $("selState").setAttribute("stroke", colors.ink2);
+    const ring = $("hl");
+    if (highlighted >= 0) {
+      const s = DS.sites[highlighted];
+      ring.setAttribute("cx", s.x); ring.setAttribute("cy", s.y); ring.setAttribute("r", 9 * shrink);
+      ring.setAttribute("stroke", colors.ink); ring.setAttribute("visibility", "visible");
+    } else if (tipSite < 0) ring.setAttribute("visibility", "hidden");
+  }
+
+  // Map units per screen pixel grow on narrow screens; enlarge dots there so they stay visible.
+  let forceDotScale = 0;
+  function dotScale() {
+    if (forceDotScale) return forceDotScale;
+    const w = $("map").getBoundingClientRect().width || MW;
+    return Math.max(1, Math.min(2.1, 720 / w));
+  }
+
+  function buildLegend() {
+    const lg = $("legend"); lg.replaceChildren();
+    lg.append(h("span", "lt", VIEWS[view].legend));
+    viewScale().forEach((c) => {
+      const span = document.createElement("span");
+      const sw = el("svg", { width: 14, height: 14, viewBox: "0 0 14 14", "aria-hidden": "true" });
+      el("circle", { cx: 7, cy: 7, r: Math.max(c.r, 3.2), fill: colors[c.color] || "#999" }, sw);
+      span.append(sw, document.createTextNode(c.label));
+      lg.append(span);
+    });
+  }
+
+  // ---- zoom and pan (SVG viewBox) ----
+  function setView_(v) {
+    zoomV = v;
+    $("map").setAttribute("viewBox", `${v.x0.toFixed(2)} ${v.y0.toFixed(2)} ${(MW / v.k).toFixed(2)} ${(MH / v.k).toFixed(2)}`);
+    paintMap();
+  }
+  function clampView(v) {
+    v.k = Math.max(1, Math.min(40, v.k));
+    const vw = MW / v.k, vh = MH / v.k, m = 30 / v.k;
+    v.x0 = Math.min(MW - vw + m, Math.max(-m, v.x0));
+    v.y0 = Math.min(MH - vh + m, Math.max(-m, v.y0));
+    if (v.k <= 1.0001) { v.k = 1; v.x0 = 0; v.y0 = 0; }
+    return v;
+  }
+  let anim = null;
+  function animateView(target, instant) {
+    cancelAnimationFrame(anim);
+    if (instant || matchMedia("(prefers-reduced-motion: reduce)").matches) { setView_(target); return; }
+    const from = { ...zoomV }, t0 = performance.now(), dur = 380;
+    const step = (t) => {
+      const u = Math.min(1, (t - t0) / dur), e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+      const lk = Math.log(from.k) + (Math.log(target.k) - Math.log(from.k)) * e;
+      setView_({ k: Math.exp(lk), x0: from.x0 + (target.x0 - from.x0) * e, y0: from.y0 + (target.y0 - from.y0) * e });
+      if (u < 1) anim = requestAnimationFrame(step);
+    };
+    anim = requestAnimationFrame(step);
+  }
+  function fitBox(x1, y1, x2, y2, pad, instant) {
+    const w = Math.max(10, x2 - x1), hh = Math.max(8, y2 - y1);
+    const k = Math.min(MW / (w * (1 + pad)), MH / (hh * (1 + pad)));
+    const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+    animateView(clampView({ k, x0: cx - MW / (2 * k), y0: cy - MH / (2 * k) }), instant);
+  }
+  function zoomToScope(path, instant) {
+    if (!path) { animateView({ x0: 0, y0: 0, k: 1 }, instant); return; }
+    const b = path.getBBox();
+    fitBox(b.x, b.y, b.x + b.width, b.y + b.height, 0.18, instant);
+  }
+  function toLogical(cx, cy) {
+    const r = $("map").getBoundingClientRect(), s = r.width / MW * zoomV.k;
+    return [zoomV.x0 + (cx - r.left) / s, zoomV.y0 + (cy - r.top) / s];
+  }
+  function zoomAt(lx, ly, factor) {
+    const k = Math.max(1, Math.min(40, zoomV.k * factor)), f = zoomV.k / k;
+    cancelAnimationFrame(anim);
+    setView_(clampView({ k, x0: lx - (lx - zoomV.x0) * f, y0: ly - (ly - zoomV.y0) * f }));
+  }
+  function zoomToSite(i) {
+    const s = DS.sites[i], k = Math.max(zoomV.k, 5);
+    animateView(clampView({ k, x0: s.x - MW / (2 * k), y0: s.y - MH / (2 * k) }));
+  }
+
+  let tipSite = -1, touchTip = -1;
+  function setupMapEvents() {
+    const map = $("map"), pts = new Map();
+    let drag = null, pinch = null, moved = false;
+    const startPinch = () => {
+      const [p1, p2] = [...pts.values()];
+      const mid = [(p1.x + p2.x) / 2, (p1.y + p2.y) / 2];
+      pinch = { dist: Math.hypot(p1.x - p2.x, p1.y - p2.y) || 1, k: zoomV.k, l: toLogical(mid[0], mid[1]) };
+    };
+    map.addEventListener("pointerdown", (ev) => {
+      pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      try { map.setPointerCapture(ev.pointerId); } catch (e) { /* synthetic events */ }
+      if (pts.size === 1) { drag = { x: ev.clientX, y: ev.clientY, v: { ...zoomV } }; moved = false; }
+      if (pts.size === 2) { startPinch(); moved = true; }
+    });
     map.addEventListener("pointermove", (ev) => {
-      const i = nearestSite(ev);
-      if (i < 0) { hideTip(); return; }
-      showSiteTip(i, ev);
+      if (pts.has(ev.pointerId)) pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (pinch && pts.size >= 2) {
+        const [p1, p2] = [...pts.values()];
+        const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y) || 1;
+        const k = Math.max(1, Math.min(40, pinch.k * dist / pinch.dist));
+        const r = map.getBoundingClientRect(), s = r.width / MW * k;
+        const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+        cancelAnimationFrame(anim);
+        setView_(clampView({ k, x0: pinch.l[0] - (mx - r.left) / s, y0: pinch.l[1] - (my - r.top) / s }));
+        hideTip(); return;
+      }
+      if (drag && pts.size === 1) {
+        const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+        if (!moved && Math.abs(dx) + Math.abs(dy) > 4) moved = true;
+        if (moved && zoomV.k > 1) {
+          map.classList.add("dragging"); hideTip();
+          const s = map.getBoundingClientRect().width / MW * zoomV.k;
+          cancelAnimationFrame(anim);
+          setView_(clampView({ k: drag.v.k, x0: drag.v.x0 - dx / s, y0: drag.v.y0 - dy / s }));
+          return;
+        }
+      }
+      if (ev.pointerType === "touch") return;
+      const i = nearestSite(ev.clientX, ev.clientY);
+      if (i < 0) hideTip(); else showSiteTip(i, ev);
     });
-    map.addEventListener("pointerleave", hideTip);
+    const end = (ev) => {
+      pts.delete(ev.pointerId);
+      if (pts.size < 2) pinch = null;
+      if (pts.size === 1) { const p = [...pts.values()][0]; drag = { x: p.x, y: p.y, v: { ...zoomV } }; }
+      if (pts.size === 0) { drag = null; map.classList.remove("dragging"); }
+    };
+    map.addEventListener("pointerup", end);
+    map.addEventListener("pointercancel", end);
+    map.addEventListener("pointerleave", (ev) => { if (ev.pointerType !== "touch") hideTip(); });
     map.addEventListener("click", (ev) => {
-      const i = nearestSite(ev);
-      if (i >= 0) window.open(siteUrl(data.sites[i].id), "_blank", "noopener");
+      if (moved) { moved = false; return; }
+      const i = nearestSite(ev.clientX, ev.clientY);
+      if (i < 0) { hideTip(); touchTip = -1; return; }
+      const touchLike = ev.pointerType === "touch" || matchMedia("(hover: none)").matches;
+      if (touchLike && touchTip !== i) { touchTip = i; showSiteTip(i, ev); return; } // first tap shows details
+      window.open(siteUrl(DS.sites[i].id), "_blank", "noopener");
     });
-    function hideTip() { tip.style.display = "none"; if (highlighted < 0) ring.setAttribute("visibility", "hidden"); }
+    map.addEventListener("wheel", (ev) => {
+      if (!(ev.ctrlKey || ev.metaKey)) return; // plain scrolling keeps scrolling the page
+      ev.preventDefault();
+      const [lx, ly] = toLogical(ev.clientX, ev.clientY);
+      zoomAt(lx, ly, Math.exp(-ev.deltaY * 0.0025));
+    }, { passive: false });
+    const center = () => [zoomV.x0 + MW / (2 * zoomV.k), zoomV.y0 + MH / (2 * zoomV.k)];
+    $("zin").addEventListener("click", () => { const [x, y] = center(); const k = Math.min(40, zoomV.k * 1.8); animateView(clampView({ k, x0: x - MW / (2 * k), y0: y - MH / (2 * k) })); });
+    $("zout").addEventListener("click", () => { const [x, y] = center(); const k = Math.max(1, zoomV.k / 1.8); animateView(clampView({ k, x0: x - MW / (2 * k), y0: y - MH / (2 * k) })); });
+    $("zreset").addEventListener("click", () => { highlighted = -1; if (scopeAb) { setScope(""); syncUrl(); } else animateView({ x0: 0, y0: 0, k: 1 }); });
   }
 
-  function svgPoint(svg, ev) {
-    const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
-    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  function hideTip() {
+    $("mapTip").style.display = "none"; tipSite = -1;
+    if (highlighted < 0) $("hl").setAttribute("visibility", "hidden");
   }
 
-  function nearestSite(ev) {
-    const svg = $("map");
-    const p = svgPoint(svg, ev);
-    const unitsPerPx = 975 / svg.getBoundingClientRect().width;
-    const maxD = 14 * unitsPerPx;
+  function nearestSite(cx, cy) {
+    const [lx, ly] = toLogical(cx, cy);
+    const r = $("map").getBoundingClientRect();
+    const maxD = 14 / (r.width / MW * zoomV.k);
     let best = -1, bestD = maxD * maxD;
-    for (let i = 0; i < data.sites.length; i++) {
-      if (cats[i][day] < 0) continue;
-      const s = data.sites[i]; const dx = s.x - p.x, dy = s.y - p.y;
-      const dd = dx * dx + dy * dy;
+    for (let i = 0; i < DS.N; i++) {
+      if (!circles[i].parentNode) continue;
+      const s = DS.sites[i], dx = s.x - lx, dy = s.y - ly, dd = dx * dx + dy * dy;
       if (dd < bestD) { bestD = dd; best = i; }
     }
     return best;
   }
 
   function showSiteTip(i, ev) {
-    const s = data.sites[i], tip = $("mapTip"), card = $("mapCard");
-    const r = ratios[i][day], v = s.sc[day];
+    const s = DS.sites[i], tip = $("mapTip"), card = $("mapCard");
+    const r = DS.R[i][day], v = s.sc[day];
+    tipSite = i;
     tip.replaceChildren();
-    const big = document.createElement("div"); big.className = "big";
-    big.textContent = r == null ? "No data today" : fmtRatio(r) + " summer level";
-    const name = document.createElement("div"); name.className = "name";
-    name.textContent = s.name + (s.state ? ", " + s.state : "");
-    const meta = document.createElement("div"); meta.className = "meta";
-    meta.textContent = (v == null ? "" : fmtInt(v) + " µS/cm on " + fmtDate(data.dates[day], { month: "short", day: "numeric" }) + " · ") + "normal " + fmtInt(s.base);
-    tip.append(big, name, meta, sparkline(i));
-    const hint = document.createElement("div"); hint.className = "meta"; hint.textContent = "Click to open the USGS page";
-    tip.append(hint);
+    let big;
+    if (view === "today") big = r >= 0 ? fmtRatio(r) + " summer level" : "No reading on " + fmtDate(DS.dates[day], SHORT);
+    else if (view === "peak") big = "Season peak " + fmtRatio(M.peak[i]) + (M.peakDay[i] >= 0 ? " on " + fmtDate(DS.dates[M.peakDay[i]], SHORT) : "");
+    else if (view === "days") big = plural(M.n3[i], "day", "days") + " at 3×+";
+    else big = M.between[i] >= 0 ? "Between storms: " + fmtRatio(M.between[i]) : "Too few readings for a between-storm level";
+    tip.append(h("div", "big", big));
+    tip.append(h("div", "name", s.name + (s.state && !s.name.endsWith(", " + s.state) ? ", " + s.state : "")));
+    tip.append(h("div", "meta", (v == null ? "No reading" : fmtInt(v) + " µS/cm") + " on " + fmtDate(DS.dates[day], SHORT) + (r >= 0 && view !== "today" ? " (" + fmtRatio(r) + ")" : "") + " · normal " + fmtInt(s.base)));
+    const fc = flowClass(i, day);
+    if (DS.Q[i]) {
+      const q = DS.Q[i][day], qm = DS.qmed[i];
+      const fl = h("div", "kv");
+      if (fc) {
+        fl.append(document.createTextNode("Flow "), h("b", "", fmtRatio(q / qm) + " typical"), document.createTextNode(" (" + fmtFlow(q) + " cfs): " + (fc === 1 ? "higher flow, salt washing in" : "lower flow, less dilution")));
+      } else fl.textContent = "No flow reading this day";
+      tip.append(fl);
+    }
+    if (M.nobs[i]) {
+      const kv = h("div", "kv");
+      const bits = [];
+      if (view !== "peak") bits.push("peak " + fmtRatio(M.peak[i]));
+      if (view !== "days") bits.push(plural(M.n3[i], "day", "days") + " at 3×+");
+      if (M.recs[i].length) bits.push("back under 1.5× in " + plural(Math.round(M.recMed[i]), "day", "days") + (M.recs[i].length > 1 ? " (median)" : ""));
+      else if (M.open[i] >= 0) bits.push("still above 1.5× after " + plural(M.open[i], "day", "days"));
+      kv.textContent = rangeShort() + ": " + bits.join(" · ");
+      tip.append(kv);
+    }
+    tip.append(sparkline(i));
+    if (DS.Q[i]) tip.append(flowSpark(i));
+    const touchLike = ev.pointerType === "touch" || matchMedia("(hover: none)").matches;
+    tip.append(h("div", "meta", touchLike ? "Tap again to open the USGS page" : "Click to open the USGS page"));
     placeTip(tip, card, ev);
     const ring = $("hl");
-    ring.setAttribute("cx", s.x); ring.setAttribute("cy", s.y);
+    ring.setAttribute("cx", s.x); ring.setAttribute("cy", s.y); ring.setAttribute("r", 9 * Math.pow(zoomV.k, -0.6) * dotScale());
     ring.setAttribute("stroke", colors.ink); ring.setAttribute("visibility", "visible");
+  }
+  const fmtFlow = (q) => (q >= 100 ? fmtInt(q) : q >= 10 ? q.toFixed(0) : q >= 1 ? q.toFixed(1) : q.toPrecision(2));
+
+  function sparkGeom(row, lo, hi, w, hgt) {
+    const y = (v) => 2 + hgt - (Math.log(Math.min(Math.max(v, lo), hi)) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) * hgt;
+    const x = (d) => (d / Math.max(1, row.length - 1)) * w;
+    let dPath = "", pen = false;
+    row.forEach((v, d) => {
+      if (!(v > 0)) { pen = false; return; }
+      dPath += (pen ? "L" : "M") + x(d).toFixed(1) + "," + y(v).toFixed(1); pen = true;
+    });
+    return { x, y, dPath };
   }
 
   function sparkline(i) {
-    const w = 200, h = 44, row = ratios[i];
-    const vals = row.filter((v) => v != null);
-    const svg = el("svg", { width: w, height: h + 18, viewBox: `0 0 ${w} ${h + 18}` });
+    const w = 220, hgt = 42, row = Array.from(DS.R[i]);
+    const svg = el("svg", { width: w, height: hgt + 18, viewBox: `0 0 ${w} ${hgt + 18}` });
     svg.style.display = "block"; svg.style.marginTop = "6px";
+    const vals = row.filter((v) => v > 0);
     if (!vals.length) return svg;
-    const lo = 0.7, max = Math.max(2, ...vals);
-    const y = (v) => 2 + h - (Math.log(Math.max(v, lo)) - Math.log(lo)) / (Math.log(max) - Math.log(lo)) * h;
-    const x = (d) => (d / (row.length - 1)) * w;
-    el("line", { x1: 0, x2: w, y1: y(1), y2: y(1), stroke: colors.axis, "stroke-width": 1 }, svg);
-    let dPath = "", pen = false;
-    row.forEach((v, d) => {
-      if (v == null || v <= 0) { pen = false; return; }
-      dPath += (pen ? "L" : "M") + x(d).toFixed(1) + "," + y(v).toFixed(1); pen = true;
-    });
-    el("path", { d: dPath, fill: "none", stroke: colors.c2, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
-    if (row[day] != null) el("circle", { cx: x(day), cy: y(row[day]), r: 4, fill: colors.c2, stroke: colors.surface, "stroke-width": 2 }, svg);
-    const cap = el("text", { x: 0, y: h + 16, "font-size": 10, fill: colors.muted }, svg);
-    cap.textContent = "Last 150 days · line = summer level";
+    const g = sparkGeom(row, 0.7, Math.max(2, ...vals), w, hgt);
+    if (DS.s0 > 0) el("rect", { x: g.x(DS.s0), y: 0, width: w - g.x(DS.s0), height: hgt + 4, fill: colors.wash }, svg);
+    el("line", { x1: 0, x2: w, y1: g.y(1), y2: g.y(1), stroke: colors.axis, "stroke-width": 1 }, svg);
+    el("path", { d: g.dPath, fill: "none", stroke: colors.c2, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    if (row[day] > 0) el("circle", { cx: g.x(day), cy: g.y(row[day]), r: 4, fill: colors.c2, stroke: colors.surface, "stroke-width": 2 }, svg);
+    const cap = el("text", { x: 0, y: hgt + 16, "font-size": 10, fill: colors.muted }, svg);
+    cap.textContent = "Salinity, " + fmtDate(DS.dates[0], SHORT) + "–" + fmtDate(DS.dates[DS.n - 1], SHORT) + " · line = summer level";
+    return svg;
+  }
+
+  function flowSpark(i) {
+    const w = 220, hgt = 30, qm = DS.qmed[i], row = Array.from(DS.Q[i], (v) => (qm > 0 ? v / qm : NaN));
+    const svg = el("svg", { width: w, height: hgt + 18, viewBox: `0 0 ${w} ${hgt + 18}` });
+    svg.style.display = "block"; svg.style.marginTop = "4px";
+    const vals = row.filter((v) => v > 0);
+    if (vals.length < 2) return svg;
+    const g = sparkGeom(row, Math.min(0.5, ...vals), Math.max(2, ...vals), w, hgt);
+    el("line", { x1: 0, x2: w, y1: g.y(1), y2: g.y(1), stroke: colors.axis, "stroke-width": 1 }, svg);
+    el("path", { d: g.dPath, fill: "none", stroke: colors.ink2, "stroke-width": 1.5, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    if (row[day] > 0) el("circle", { cx: g.x(day), cy: g.y(row[day]), r: 3.5, fill: colors.ink2, stroke: colors.surface, "stroke-width": 2 }, svg);
+    const cap = el("text", { x: 0, y: hgt + 16, "font-size": 10, fill: colors.muted }, svg);
+    cap.textContent = "Streamflow · line = typical flow";
     return svg;
   }
 
@@ -395,82 +1042,71 @@
     const tw = tip.offsetWidth, th = tip.offsetHeight;
     if (left + tw > box.width - 8) left = ev.clientX - box.left - tw - 14;
     if (top + th > box.height - 8) top = ev.clientY - box.top - th - 14;
-    tip.style.left = Math.max(8, left) + "px"; tip.style.top = Math.max(8, top) + "px";
-  }
-
-  function paintMap() {
-    for (let i = 0; i < circles.length; i++) {
-      const c = circles[i], k = cats[i][day];
-      if (k < 0) { if (c.parentNode) c.remove(); continue; }
-      const cat = CATS[k];
-      c.setAttribute("r", cat.r);
-      c.setAttribute("fill", colors[cat.key]);
-      c.setAttribute("stroke", colors.surface);
-      c.setAttribute("stroke-width", k === 0 ? 0.6 : 1.1);
-      if (c.parentNode !== layers[k]) layers[k].appendChild(c);
-    }
-    const g = $("map").querySelector(".states");
-    g.setAttribute("fill", colors.land); g.setAttribute("stroke", colors.stateLine);
-    g.setAttribute("stroke-width", 0.8); g.setAttribute("stroke-linejoin", "round");
-    if (highlighted >= 0) {
-      const s = data.sites[highlighted], ring = $("hl");
-      ring.setAttribute("cx", s.x); ring.setAttribute("cy", s.y);
-      ring.setAttribute("stroke", colors.ink); ring.setAttribute("visibility", "visible");
-    }
-  }
-
-  function buildLegend() {
-    const lg = $("legend"); lg.replaceChildren();
-    CATS.forEach((c) => {
-      const span = document.createElement("span");
-      const sw = el("svg", { width: 14, height: 14, viewBox: "0 0 14 14", "aria-hidden": "true" });
-      el("circle", { cx: 7, cy: 7, r: Math.max(c.r, 3.2), fill: colors[c.key] || "#999" }, sw);
-      span.append(sw, document.createTextNode(c.label));
-      lg.append(span);
-    });
+    tip.style.left = Math.max(8, Math.min(left, box.width - tw - 8)) + "px"; tip.style.top = Math.max(8, top) + "px";
   }
 
   // ---------------------------------------------------------------- chart
+  function scopeEvents() {
+    const evs = DS.events.map((e, k) => {
+      let n = e.sites.size;
+      if (scopeAb) { n = 0; e.sites.forEach((i) => { if (DS.sites[i].state === scopeAb) n++; }); }
+      return { e, k, n };
+    });
+    return evs.filter((x) => x.n > 0);
+  }
+
+  function eventText(x, short) {
+    const e = x.e, when = fmtDate(DS.dates[e.peakDay], SHORT);
+    if (short) return when + " · " + fmtInt(x.n);
+    if (scopeAb) return when + ": " + plural(x.n, STATE_NAMES[scopeAb] + " stream", STATE_NAMES[scopeAb] + " streams") + " spiked";
+    return when + ": " + plural(x.n, "stream", "streams") + " spiked " + whereText(e);
+  }
+  function whereText(e) {
+    const names = e.regions.map(([g]) => REGIONS[g][0]);
+    if (names.length === 1) return "in the " + names[0];
+    if (names.length === 2) return "in the " + names[0] + " and " + names[1];
+    if (names.length === 3) return "in the " + names[0] + ", " + names[1] + " and " + names[2];
+    return "in the " + names[0] + ", " + names[1] + " and " + (names.length - 2) + " more regions";
+  }
+
   function drawChart() {
+    if (!DS) return;
     const svg = $("chart"), wrap = $("chartWrap");
-    const W = Math.max(320, wrap.clientWidth), H = 240;
-    const m = { t: 10, r: 8, b: 26, l: 40 };
+    const W = Math.max(300, wrap.clientWidth), H = 270;
+    const m = { t: 44, r: 8, b: 26, l: 40 };
     svg.setAttribute("width", W); svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     svg.replaceChildren();
-    const n = summary.length;
-    const share = summary.map((s) => s.reporting ? s.counts.map((c) => (100 * c) / s.reporting) : [0, 0, 0, 0]);
+    const sum = DS.sum, n = sum.length;
+    const share = sum.map((s) => (s.reporting ? s.counts.map((c) => (100 * c) / s.reporting) : [0, 0, 0, 0]));
     const top = Math.max(5, ...share.map((s) => s[1] + s[2] + s[3]));
     const yMax = niceMax(top);
     const iw = W - m.l - m.r, ih = H - m.t - m.b;
-    const slot = iw / n, bw = Math.max(1, slot - (slot > 4 ? 2 : 1));
+    const slot = iw / n, bw = Math.max(1, slot - (slot > 4 ? 2 : slot > 2 ? 1 : 0.4));
     const y = (v) => m.t + ih - (v / yMax) * ih;
 
-    // gridlines + y ticks on round numbers
     const step = { 5: 1, 10: 2, 20: 5, 25: 5, 40: 10, 50: 10, 60: 20, 80: 20, 100: 20 }[yMax] || yMax / 4;
     for (let v = 0; v <= yMax + 1e-9; v += step) {
-      const yy = y(v), t = v;
-      el("line", { x1: m.l, x2: W - m.r, y1: yy, y2: yy, stroke: t === 0 ? colors.axis : colors.grid, "stroke-width": 1 }, svg);
-      const lab = el("text", { x: m.l - 6, y: yy + 4, "text-anchor": "end", "font-size": 11, fill: colors.muted }, svg);
-      lab.textContent = Math.round(v) + "%";
+      const yy = y(v);
+      el("line", { x1: m.l, x2: W - m.r, y1: yy, y2: yy, stroke: v === 0 ? colors.axis : colors.grid, "stroke-width": 1 }, svg);
+      el("text", { x: m.l - 6, y: yy + 4, "text-anchor": "end", "font-size": 11, fill: colors.muted }, svg).textContent = Math.round(v) + "%";
     }
-    // month ticks
-    let lastMonth = -1;
-    summary.forEach((s, d) => {
+    let lastLabelX = -99;
+    sum.forEach((s, d) => {
       const dt = new Date(s.date + "T00:00:00Z");
-      if (dt.getUTCDate() === 1 || (d === 0 && dt.getUTCDate() < 8)) {
-        if (dt.getUTCMonth() === lastMonth) return;
-        lastMonth = dt.getUTCMonth();
-        const xx = m.l + d * slot;
-        const lab = el("text", { x: xx, y: H - 8, "font-size": 11, fill: colors.muted }, svg);
-        lab.textContent = fmtDate(s.date, { month: "short" });
-      }
+      if (dt.getUTCDate() !== 1 && !(d === 0 && dt.getUTCDate() < 8)) return;
+      const xx = m.l + d * slot;
+      if (xx - lastLabelX < 34) return;
+      lastLabelX = xx;
+      el("text", { x: xx, y: H - 8, "font-size": 11, fill: colors.muted }, svg).textContent = fmtDate(s.date, { month: "short" });
     });
+    if (DS.s0 > 0) {
+      const xs = m.l + DS.s0 * slot;
+      el("line", { x1: xs, x2: xs, y1: m.t, y2: m.t + ih, stroke: colors.axis, "stroke-width": 1, "stroke-dasharray": "3 3" }, svg);
+      const t = el("text", { x: xs - 4, y: m.t + 12, "text-anchor": "end", "font-size": 11, fill: colors.muted }, svg);
+      t.textContent = "Salt season starts";
+    }
+    el("rect", { id: "selWash", y: m.t, height: ih, width: slot, fill: colors.wash, x: m.l + day * slot }, svg);
 
-    // selected-day wash
-    const sel = el("rect", { id: "selWash", y: m.t, height: ih, width: slot, fill: colors.wash }, svg);
-    sel.setAttribute("x", m.l + day * slot);
-
-    // stacked columns: elevated at the bottom, extreme on top, 1px surface gap between parts
     const bars = el("g", {}, svg);
     share.forEach((s, d) => {
       let base = 0;
@@ -479,158 +1115,532 @@
         const v = s[k]; if (v <= 0) continue;
         const y1 = y(base + v), y0 = y(base);
         const hgt = Math.max(0, y0 - y1 - (base > 0 ? 1 : 0));
-        if (hgt > 0.2) el("rect", { x: x0, y: y1, width: bw, height: hgt, fill: colors[CATS[k].key] }, bars);
+        if (hgt > 0.2) el("rect", { x: x0, y: y1, width: bw, height: hgt, fill: colors[CATS[k].color] }, bars);
         base += v;
       }
     });
 
-    // hit layer: one column-wide target per day
+    // storm labels: the three biggest events, two rows above the plot
+    const evs = scopeEvents().sort((a, b) => b.n - a.n).slice(0, 3);
+    const rows = [[], []], rowY = [14, 31];
+    const lab = el("g", {}, svg);
+    for (const x of evs) {
+      const d = x.e.peakDay, cx = m.l + d * slot + slot / 2;
+      const colTop = y(share[d][1] + share[d][2] + share[d][3]);
+      let placed = false;
+      for (const short of iw >= 560 ? [false, true] : [true]) {
+        const t = el("text", { "font-size": 11.5, fill: colors.ink2, y: 0 }, lab);
+        t.textContent = eventText(x, short);
+        const w = t.getComputedTextLength();
+        if (w > W - m.l - m.r) { t.remove(); continue; }
+        const left = Math.max(m.l, Math.min(W - m.r - w, cx - w / 2));
+        for (let r = 0; r < 2 && !placed; r++) {
+          if (rows[r].some(([a, b]) => left < b + 10 && left + w > a - 10)) continue;
+          rows[r].push([left, left + w]);
+          t.setAttribute("x", left); t.setAttribute("y", rowY[r]);
+          if (!short) t.setAttribute("font-weight", 600);
+          el("line", { x1: cx, x2: cx, y1: rowY[r] + 4, y2: Math.max(rowY[r] + 4, colTop - 3), stroke: colors.muted, "stroke-width": 1 }, lab);
+          placed = true;
+        }
+        if (placed) break;
+        t.remove();
+      }
+    }
+
     const hit = el("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent" }, svg);
     hit.style.cursor = "pointer";
     const dayAt = (ev) => {
-      const p = svgPoint(svg, ev);
-      return Math.min(n - 1, Math.max(0, Math.floor((p.x - m.l) / slot)));
+      const r = svg.getBoundingClientRect();
+      return Math.min(n - 1, Math.max(0, Math.floor((ev.clientX - r.left - m.l) / slot)));
     };
     hit.addEventListener("pointermove", (ev) => showChartTip(dayAt(ev), ev, share));
     hit.addEventListener("pointerleave", () => { $("chartTip").style.display = "none"; });
-    hit.addEventListener("click", (ev) => { stop(); setDay(dayAt(ev)); $("day").value = day; });
+    hit.addEventListener("click", (ev) => { stop(); setDay(dayAt(ev)); });
     drawChart.layout = { m, slot };
   }
 
   function showChartTip(d, ev, share) {
-    const tip = $("chartTip"), s = summary[d];
+    const tip = $("chartTip"), s = DS.sum[d];
     tip.replaceChildren();
-    const head = document.createElement("div"); head.className = "name";
-    head.textContent = fmtDate(s.date) + " · " + fmtInt(s.reporting) + " sensors";
-    tip.append(head);
+    tip.append(h("div", "name", fmtDate(s.date) + " · " + plural(s.reporting, "sensor", "sensors")));
     for (let k = 3; k >= 1; k--) {
-      const row = document.createElement("div"); row.className = "row";
-      const key = document.createElement("span"); key.className = "key"; key.style.background = colors[CATS[k].key];
-      const val = document.createElement("b"); val.textContent = share[d][k].toFixed(1) + "%";
-      const lab = document.createElement("span"); lab.textContent = CATS[k].label + " (" + fmtInt(s.counts[k]) + ")";
-      row.append(key, val, lab); tip.append(row);
+      const row = h("div", "row");
+      const key = h("span", "key"); key.style.background = colors[CATS[k].color];
+      row.append(key, h("b", "", share[d][k].toFixed(1) + "%"), h("span", "", CATS[k].label + " (" + fmtInt(s.counts[k]) + ")"));
+      tip.append(row);
+    }
+    const ek = DS.eventByDay[d];
+    if (ek >= 0) {
+      const x = scopeEvents().find((z) => z.k === ek);
+      if (x) tip.append(h("div", "kv", "Salt storm: " + eventText(x)));
     }
     placeTip(tip, $("chartCard"), ev);
   }
 
   function niceMax(v) {
-    const steps = [5, 10, 20, 25, 40, 50, 60, 80, 100];
-    for (const s of steps) if (v <= s) return s;
+    for (const s of [5, 10, 20, 25, 40, 50, 60, 80, 100]) if (v <= s) return s;
     return 100;
   }
 
   function buildDailyTable() {
     const t = $("dailyTable"); t.replaceChildren();
     const head = t.createTHead().insertRow();
-    ["Date", "Sensors reporting", "1.5–3×", "3–10×", "10× or more"].forEach((h, i) => {
-      const th = document.createElement("th"); th.textContent = h; if (i) th.className = "num"; head.append(th);
+    ["Date", "Sensors reporting", "1.5–3×", "3–10×", "10× or more", "Salt storm"].forEach((x, i) => {
+      const th = h("th", i && i < 5 ? "num" : "", x); head.append(th);
     });
-    const body = t.createTBody();
-    for (let d = summary.length - 1; d >= 0; d--) {
-      const s = summary[d], r = body.insertRow();
-      [fmtDate(s.date), fmtInt(s.reporting), fmtInt(s.counts[1]), fmtInt(s.counts[2]), fmtInt(s.counts[3])].forEach((v, i) => {
-        const td = r.insertCell(); td.textContent = v; if (i) td.className = "num";
+    const body = t.createTBody(), evs = scopeEvents();
+    for (let d = DS.sum.length - 1; d >= 0; d--) {
+      const s = DS.sum[d], r = body.insertRow();
+      const ek = DS.eventByDay[d], x = ek >= 0 ? evs.find((z) => z.k === ek) : null;
+      [fmtDate(s.date), fmtInt(s.reporting), fmtInt(s.counts[1]), fmtInt(s.counts[2]), fmtInt(s.counts[3]), x && x.e.peakDay === d ? eventText(x) : ""].forEach((v, i) => {
+        const td = r.insertCell(); td.textContent = v; if (i && i < 5) td.className = "num";
       });
     }
   }
 
-  // ------------------------------------------------------------- day state
-  function setDay(d) {
-    day = d;
-    $("dateLabel").textContent = fmtDate(data.dates[day]);
-    paintMap();
-    const wash = $("selWash"), L = drawChart.layout;
-    if (wash && L) wash.setAttribute("x", L.m.l + day * L.slot);
-    updateHeadline();
-    updateTop();
+  // ---------------------------------------------------------------- storms list
+  function renderEvents() {
+    const box = $("events"); box.replaceChildren();
+    const [a, d] = seasonRange();
+    const evs = scopeEvents().filter((x) => x.e.d0 >= a);
+    $("stormTitle").textContent = "Salt storms" + (scopeAb ? " in " + STATE_NAMES[scopeAb] : "") + ", " + rangeLong(a, DS.n - 1);
+    if (!evs.length) {
+      box.append(h("div", "empty-note", DS.n - 1 - DS.s0 < 21 && !DS.archive ? "No salt storms detected yet this season." : "No salt storms detected" + (scopeAb ? " in " + STATE_NAMES[scopeAb] : "") + " in this period."));
+      return;
+    }
+    const maxN = Math.max(...evs.map((x) => x.n));
+    for (const x of evs) {
+      const e = x.e;
+      const b = h("button", "ev" + (day >= e.d0 && day <= e.d1 ? " sel" : "")); b.type = "button";
+      const span = e.d1 > e.d0 ? fmtDate(DS.dates[e.d0], SHORT) + "–" + fmtDate(DS.dates[e.d1], e.d0 && DS.dates[e.d0].slice(5, 7) === DS.dates[e.d1].slice(5, 7) ? { day: "numeric" } : SHORT) : fmtDate(DS.dates[e.d0], SHORT);
+      b.append(h("span", "d", span));
+      const where = (scopeAb ? "Part of a storm " + whereText(e) : whereText(e).replace(/^in the /, "")).replace(/^./, (c) => c.toUpperCase());
+      b.append(h("span", "w", where));
+      const nn = h("span", "n"); nn.append(document.createTextNode(fmtInt(x.n) + " "), h("span", "", x.n === 1 ? "stream spiked" : "streams spiked"));
+      b.append(nn);
+      if (x.n === maxN) b.title = "The biggest storm of this period";
+      b.addEventListener("click", () => {
+        stop();
+        if (view !== "today") setView("today");
+        setDay(e.peakDay);
+        $("mapCard").scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      box.append(b);
+    }
   }
 
-  function headlineText(d = day) {
-    const s = summary[d], n = s.counts[2] + s.counts[3];
-    const when = fmtDate(data.dates[d], { month: "long", day: "numeric" });
-    if (!s.reporting) return "No sensors reported on " + when + ".";
-    if (n === 0) return "No U.S. streams ran 3× above their summer salinity on " + when + ".";
-    return fmtInt(n) + (n === 1 ? " U.S. stream" : " U.S. streams") + " ran at least 3× their summer salinity on " + when + ".";
+  // ---------------------------------------------------------------- flow card
+  function renderFlow() {
+    const box = $("flowRows"); box.replaceChildren();
+    if (!DS.hasFlow) {
+      box.append(h("div", "empty-note", "Streamflow appears here after the next data update."));
+      return;
+    }
+    const today = [0, 0, 0], season = [0, 0, 0];
+    for (const i of scopeIdx) {
+      if (DS.R[i][day] >= 3) today[flowClass(i, day)]++;
+      season[1] += M.n3hi[i]; season[2] += M.n3lo[i]; season[0] += M.n3[i] - M.n3hi[i] - M.n3lo[i];
+    }
+    const [a, d] = seasonRange();
+    box.append(flowBar("On " + fmtDate(DS.dates[day], LONG), today, "salty readings"));
+    box.append(flowBar("Season so far, " + rangeLong(a, d), season, "salty sensor-days"));
+  }
+
+  function flowBar(caption, c, unit) {
+    const total = c[0] + c[1] + c[2];
+    const row = h("div", "flow-row");
+    const cap = h("div", "cap"); cap.append(h("b", "", caption), document.createTextNode(" · " + fmtInt(total) + " " + unit + " at 3× or more"));
+    row.append(cap);
+    if (!total) { row.append(h("div", "empty-note", "No readings at 3× or more.")); return row; }
+    const parts = [[1, "Higher-than-typical flow", colors["--flush"]], [2, "Lower-than-typical flow", colors["--lowflow"]], [0, "No flow data", colors["--normal"]]];
+    const bar = h("div", "fbar");
+    bar.setAttribute("role", "img");
+    bar.setAttribute("aria-label", parts.map(([k, lab]) => lab + " " + fmtPct((100 * c[k]) / total)).join(", "));
+    const labels = h("div", "flabels");
+    for (const [k, lab, col] of parts) {
+      if (!c[k]) continue;
+      const seg = h("div"); seg.style.flex = String(c[k]); seg.style.background = col;
+      seg.addEventListener("pointermove", (ev) => {
+        const tip = $("flowTip"); tip.replaceChildren(h("div", "big", fmtPct((100 * c[k]) / total)), h("div", "name", lab), h("div", "meta", fmtInt(c[k]) + " of " + fmtInt(total) + " " + unit));
+        placeTip(tip, $("flowCard"), ev);
+      });
+      seg.addEventListener("pointerleave", () => { $("flowTip").style.display = "none"; });
+      bar.append(seg);
+      const l = h("span"); const sw = h("i"); sw.style.background = col;
+      l.append(sw, document.createTextNode(lab + " "), h("b", "", fmtPct((100 * c[k]) / total)));
+      labels.append(l);
+    }
+    row.append(bar, labels);
+    return row;
+  }
+
+  // ---------------------------------------------------------------- rankings
+  const recKey = (i) => (M.recs[i].length ? M.recMed[i] : M.open[i] >= 0 ? 1000 + M.open[i] : -1);
+  const recText = (i) => (M.recs[i].length ? fmtInt(M.recMed[i]) : M.open[i] >= 0 ? "still high" : "—");
+
+  function streamLink(i) {
+    const s = DS.sites[i], a = document.createElement("a");
+    a.href = siteUrl(s.id); a.target = "_blank"; a.rel = "noopener"; a.textContent = s.name;
+    return a;
+  }
+
+  const TABS = {
+    today: {
+      desc: () => "Ranked by how far each stream sits above its own summer level on " + fmtDate(DS.dates[day]) + ". Click a row to find it on the map.",
+      rows: () => scopeIdx.filter((i) => DS.R[i][day] >= 0),
+      click: (i) => focusSite(i),
+      cols: [
+        { key: "name", label: "Stream", text: true, get: (i) => DS.sites[i].name, cell: streamLink },
+        { key: "state", label: "State", text: true, get: (i) => DS.sites[i].state },
+        { key: "sc", label: "Today (µS/cm)", get: (i) => DS.sites[i].sc[day], fmt: fmtInt },
+        { key: "base", label: "Summer normal", get: (i) => DS.sites[i].base, fmt: fmtInt },
+        { key: "ratio", label: "× normal", get: (i) => DS.R[i][day], fmt: fmtRatio },
+        { key: "flow", label: "Flow vs. typical", get: (i) => { const c = flowClass(i, day); return c ? DS.Q[i][day] / DS.qmed[i] : null; }, fmt: fmtRatio },
+      ],
+    },
+    streams: {
+      desc: () => "Every stream's season so far, " + rangeLong(...seasonRange()) + ". Sort by any column; click a row to find it on the map.",
+      rows: () => scopeIdx.filter((i) => M.nobs[i] > 0),
+      click: (i) => focusSite(i),
+      cols: [
+        { key: "name", label: "Stream", text: true, get: (i) => DS.sites[i].name, cell: streamLink },
+        { key: "state", label: "State", text: true, get: (i) => DS.sites[i].state },
+        { key: "peak", label: "Peak (× summer)", get: (i) => M.peak[i], fmt: fmtRatio },
+        { key: "pday", label: "Peak date", get: (i) => M.peakDay[i], fmt: (v) => (v >= 0 ? fmtDate(DS.dates[v], SHORT) : "—"), csv: (v) => (v >= 0 ? DS.dates[v] : "") },
+        { key: "n15", label: "Days ≥1.5×", get: (i) => M.n15[i], fmt: fmtInt },
+        { key: "n3", label: "Days ≥3×", get: (i) => M.n3[i], fmt: fmtInt },
+        { key: "n10", label: "Days ≥10×", get: (i) => M.n10[i], fmt: fmtInt },
+        { key: "rec", label: "Days back under 1.5×", get: recKey, fmt: (v, i) => recText(i), csv: (v, i) => (M.recs[i].length ? M.recMed[i] : M.open[i] >= 0 ? "still above 1.5x" : "") },
+        { key: "between", label: "Between storms (×)", get: (i) => M.between[i], fmt: fmtRatio },
+        { key: "qpeak", label: "Flow at peak (× typical)", get: (i) => M.qPeak[i], fmt: fmtRatio },
+      ],
+    },
+    states: {
+      desc: () => "Ranked by the share of each state's sensors that reached 3× their summer level, " + rangeLong(...seasonRange()) + ". States with fewer than " + RANK_MIN_SENSORS + " sensors aren't ranked. Click a row to zoom to the state.",
+      rows: () => stateRows(),
+      click: (r) => { setScope(r.ab); syncUrl(); $("mapCard").scrollIntoView({ behavior: "smooth", block: "start" }); },
+      key: (r) => r.ab,
+      cols: [
+        { key: "rank", label: "Rank", get: (r) => r.rank, fmt: (v) => (v ? String(v) : "—") },
+        { key: "name", label: "State", text: true, get: (r) => STATE_NAMES[r.ab] },
+        { key: "sensors", label: "Sensors", get: (r) => r.sensors, fmt: fmtInt },
+        { key: "hit3", label: "Reached 3×", get: (r) => r.hit3, fmt: fmtInt },
+        { key: "pct3", label: "Share reached 3×", get: (r) => r.pct3, fmt: fmtPct },
+        { key: "medPeak", label: "Median peak (×)", get: (r) => r.medPeak, fmt: fmtRatio },
+        { key: "days3", label: "Sensor-days ≥3×", get: (r) => r.days3, fmt: fmtInt },
+        { key: "rec", label: "Median days back under 1.5×", get: (r) => r.rec, fmt: (v) => (isFinite(v) ? fmtInt(v) : "—") },
+        { key: "b15", label: "Between storms ≥1.5×", get: (r) => r.b15, fmt: fmtInt },
+      ],
+    },
+  };
+
+  function stateRows() {
+    const rows = [];
+    for (const [ab, idx] of Object.entries(DS.byState)) {
+      const live = idx.filter((i) => M.nobs[i] > 0);
+      if (!live.length) continue;
+      const peaks = live.map((i) => M.peak[i]), recsAll = [];
+      let hit3 = 0, days3 = 0, b15 = 0;
+      for (const i of live) { if (M.peak[i] >= 3) hit3++; days3 += M.n3[i]; if (M.between[i] >= 1.5) b15++; recsAll.push(...M.recs[i]); }
+      rows.push({ ab, sensors: live.length, hit3, pct3: (100 * hit3) / live.length, medPeak: median(peaks), days3, rec: median(recsAll), b15, rank: 0 });
+    }
+    const ranked = rows.filter((r) => r.sensors >= RANK_MIN_SENSORS).sort((a, b) => b.pct3 - a.pct3 || b.medPeak - a.medPeak);
+    ranked.forEach((r, k) => { r.rank = k > 0 && r.pct3 === ranked[k - 1].pct3 && r.medPeak === ranked[k - 1].medPeak ? ranked[k - 1].rank : k + 1; });
+    stateRows.ranked = ranked.length;
+    return rows;
+  }
+
+  function sortRows(tab, rows) {
+    const T = TABS[tab], [key, dir] = rankSort[tab], col = T.cols.find((c) => c.key === key);
+    const isMissing = (v) => v == null || v === "" || Number.isNaN(v) || v < 0 || (key === "rank" && v === 0);
+    return rows.map((r) => [r, col.get(r)]).sort((x, y) => {
+      const ma = isMissing(x[1]), mb = isMissing(y[1]);
+      if (ma || mb) return ma === mb ? 0 : ma ? 1 : -1;
+      if (col.text) return dir * String(x[1]).localeCompare(String(y[1]));
+      return x[1] === y[1] ? 0 : dir * (x[1] < y[1] ? -1 : 1);
+    }).map((x) => x[0]);
+  }
+
+  function renderRankings() {
+    const T = TABS[rankTab], t = $("rankTable");
+    $("rankTitle").textContent = rankTab === "today" ? "Saltiest streams on " + fmtDate(DS.dates[day]) : rankTab === "streams" ? "Season scorecard: streams" : "Season scorecard: states";
+    if (scopeAb && rankTab !== "states") $("rankTitle").textContent += " · " + STATE_NAMES[scopeAb];
+    $("rankDesc").textContent = T.desc();
+    t.replaceChildren();
+    const hr = t.createTHead().insertRow();
+    T.cols.forEach((c) => {
+      const th = h("th", "sortable" + (c.text ? "" : " num"), c.label);
+      th.tabIndex = 0;
+      th.setAttribute("aria-sort", c.key === rankSort[rankTab][0] ? (rankSort[rankTab][1] > 0 ? "ascending" : "descending") : "none");
+      const go = () => {
+        const [k, dd] = rankSort[rankTab];
+        rankSort[rankTab] = [c.key, k === c.key ? -dd : c.text || c.key === "rank" ? 1 : -1];
+        renderRankings();
+      };
+      th.addEventListener("click", go); th.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+      hr.append(th);
+    });
+    const rows = sortRows(rankTab, T.rows());
+    const limit = showAllRows ? rows.length : rankTab === "states" ? 60 : 15;
+    const body = t.createTBody();
+    for (const r of rows.slice(0, limit)) {
+      const tr = body.insertRow();
+      if (rankTab === "states" && r.ab === scopeAb) tr.classList.add("sel");
+      T.cols.forEach((c) => {
+        const td = tr.insertCell(), v = c.get(r);
+        if (c.cell) td.append(c.cell(r)); else td.textContent = c.fmt ? c.fmt(v, r) : v || "";
+        if (!c.text) td.className = "num";
+        if (rankTab === "states" && !r.rank && c.key !== "name") td.classList.add("muted");
+      });
+      tr.addEventListener("click", (ev) => { if (ev.target.tagName !== "A") T.click(r); });
+    }
+    if (!rows.length) { const td = body.insertRow().insertCell(); td.colSpan = T.cols.length; td.textContent = "No sensors reported in this period."; }
+    const more = rows.length > limit;
+    $("showAll").hidden = !(more || showAllRows) || rows.length <= 15;
+    $("showAll").textContent = showAllRows ? "Show fewer" : "Show all " + fmtInt(rows.length);
+    $("rankCount").textContent = rankTab === "states" ? fmtInt(rows.length) + " states with sensors" : plural(rows.length, "stream", "streams") + (scopeAb ? " in " + STATE_NAMES[scopeAb] : "");
+  }
+
+  function downloadCsv() {
+    const T = TABS[rankTab], rows = sortRows(rankTab, T.rows());
+    const esc = (v) => (typeof v === "string" && /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v);
+    const cols = rankTab === "states" ? [{ key: "ab", label: "State code", get: (r) => r.ab, text: true }, ...T.cols] : [{ key: "id", label: "USGS site", get: (i) => DS.sites[i].id, text: true }, ...T.cols];
+    const lines = [cols.map((c) => esc(c.label.replace("×", "x").replace("≥", ">="))).join(",")];
+    for (const r of rows) {
+      lines.push(cols.map((c) => {
+        const v = c.get(r);
+        if (c.csv) return esc(String(c.csv(v, r)));
+        if (c.text) return esc(String(v ?? ""));
+        if (v == null || Number.isNaN(v) || (v < 0 && c.key !== "rank")) return "";
+        return c.key === "rank" && !v ? "" : Math.round(v * 100) / 100;
+      }).join(","));
+    }
+    const [a, d] = rankTab === "today" ? [day, day] : seasonRange();
+    lines.push("", esc("Period: " + DS.dates[a] + " to " + DS.dates[d] + (DS.archive ? " (" + DS.label + ")" : "")));
+    lines.push(esc("Source: USGS Water Data API, daily mean specific conductance (00095) and discharge (00060), provisional. Ratios compare with each stream's May-Oct median. Analysis by Shantanu Bhide, shantanubhide.com/salt-tracker"));
+    if (DS.raw.demo) lines.push(esc("SYNTHETIC TEST DATA - not real measurements"));
+    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    const a_ = document.createElement("a");
+    a_.href = URL.createObjectURL(blob);
+    a_.download = "salt-" + (rankTab === "today" ? "today-" + DS.dates[day] : rankTab + "-" + (DS.archive ? DS.id : DS.dates[a] + "-to-" + DS.dates[d])) + (scopeAb && rankTab !== "states" ? "-" + scopeAb : "") + ".csv";
+    document.body.append(a_); a_.click(); a_.remove();
+  }
+
+  function focusSite(i) {
+    highlighted = i;
+    zoomToSite(i);
+    paintMap();
+    $("mapCard").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ---------------------------------------------------------------- day + view state
+  function rangeShort() {
+    const [a, d] = seasonRange();
+    return fmtDate(DS.dates[a], SHORT) + "–" + fmtDate(DS.dates[d], SHORT);
+  }
+  function rangeLong(a, d) {
+    if (DS.archive && a === 0 && d === DS.n - 1) return DS.label.replace("Winter", "winter");
+    const y = (iso) => iso.slice(0, 4);
+    const left = fmtDate(DS.dates[a], y(DS.dates[a]) === y(DS.dates[d]) ? SHORT : undefined);
+    return left + " – " + fmtDate(DS.dates[d]);
+  }
+  function rangePhrase() {
+    const [a, d] = seasonRange();
+    if (DS.archive && a === 0 && d === DS.n - 1) return "in " + DS.label.replace("Winter", "winter");
+    return "between " + fmtDate(DS.dates[a], SHORT) + " and " + fmtDate(DS.dates[d], SHORT);
+  }
+
+  function setDay(d, force) {
+    if (!DS) return;
+    d = Math.max(0, Math.min(DS.n - 1, d));
+    day = d;
+    $("day").value = d;
+    $("dateLabel").textContent = fmtDate(DS.dates[day]);
+    const [a] = seasonRange();
+    if (!M || M.ds !== DS || M.a !== a || M.d !== d) M = computeMetrics(a, d);
+    paintMap();
+    if (force || !drawChart.layout || drawChart.ds !== DS || drawChart.scope !== scopeAb) {
+      drawChart(); buildDailyTable(); drawChart.ds = DS; drawChart.scope = scopeAb;
+    } else {
+      const wash = $("selWash"), L = drawChart.layout;
+      if (wash && L) wash.setAttribute("x", L.m.l + day * L.slot);
+    }
+    updateHeadline();
+    renderFlow();
+    if (!playing) { renderEvents(); renderRankings(); }
+    else if (DS.eventByDay[d] >= 0 || d % 7 === 0) renderEvents();
+    if (tipSite >= 0) hideTip();
+  }
+
+  function setView(v, repaint = true) {
+    view = v;
+    document.querySelectorAll("#viewSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === v)));
+    $("mapTitle").textContent = VIEWS[v].title;
+    buildLegend();
+    if (repaint && DS) { paintMap(); updateHeadline(); hideTip(); }
+  }
+
+  function headlineText() {
+    const who = scopeName(), [a, d] = seasonRange();
+    const when = fmtDate(DS.dates[day], LONG) + (DS.archive ? ", " + DS.dates[day].slice(0, 4) : "");
+    const idx = scopeIdx;
+    if (view === "today") {
+      let n = 0, rep = 0;
+      for (const i of idx) { const r = DS.R[i][day]; if (r >= 0) { rep++; if (r >= 3) n++; } }
+      if (!rep) return "No sensors reported on " + when + ".";
+      if (!n) return "No " + who + " ran 3× above their summer salinity on " + when + ".";
+      return plural(n, scopeName(false), who) + " ran at least 3× " + (n === 1 ? "its" : "their") + " summer salinity on " + when + ".";
+    }
+    const act = idx.filter((i) => M.nobs[i] > 0);
+    if (!act.length) return "No sensors reported " + rangePhrase() + ".";
+    if (view === "peak") {
+      const n = act.filter((i) => M.peak[i] >= 3).length;
+      if (!n) return "None of " + plural(act.length, scopeName(false), who) + " reached 3× " + (act.length === 1 ? "its" : "their") + " summer salinity " + rangePhrase() + ".";
+      return fmtInt(n) + " of " + plural(act.length, scopeName(false), who) + " reached at least 3× " + (act.length === 1 ? "its" : "their") + " summer salinity " + rangePhrase() + ".";
+    }
+    if (view === "days") {
+      const n = act.filter((i) => M.n3[i] >= 14).length;
+      if (!n) {
+        const mx = Math.max(...act.map((i) => M.n3[i]));
+        return mx ? "The saltiest " + who + " spent up to " + plural(mx, "day", "days") + " at 3× their summer level " + rangePhrase() + "." : "No " + who + " reached 3× their summer level " + rangePhrase() + ".";
+      }
+      return plural(n, scopeName(false), who) + " spent two weeks or more at 3× " + (n === 1 ? "its" : "their") + " summer salinity " + rangePhrase() + ".";
+    }
+    const withB = act.filter((i) => M.between[i] >= 0);
+    if (!withB.length) return "Not enough readings yet to measure between-storm levels.";
+    const n = withB.filter((i) => M.between[i] >= 1.5).length;
+    return "Even between storms, " + fmtInt(n) + " of " + fmtInt(withB.length) + " " + who + " stayed at least 1.5× saltier than in summer " + rangePhrase() + ".";
+  }
+
+  function tileData() {
+    const idx = scopeIdx, [a, d] = seasonRange();
+    if (view === "today") {
+      let rep = 0, above = 0, n3 = 0, n10 = 0;
+      for (const i of idx) { const r = DS.R[i][day]; if (!(r >= 0)) continue; rep++; if (r >= 1.5) above++; if (r >= 3) n3++; if (r >= 10) n10++; }
+      return [
+        ["Sensors reporting", fmtInt(rep), "USGS stream gages"],
+        ["Above 1.5× normal", fmtInt(above), rep ? fmtPct((100 * above) / rep) + " of reporting" : ""],
+        ["3× or more", fmtInt(n3), rep ? fmtPct((100 * n3) / rep) + " of reporting" : ""],
+        ["10× or more", fmtInt(n10), "the sharpest salt pulses"],
+      ];
+    }
+    const act = idx.filter((i) => M.nobs[i] > 0), sub = rangeShort();
+    const recsAll = []; act.forEach((i) => recsAll.push(...M.recs[i]));
+    const medRec = median(recsAll);
+    if (view === "peak") {
+      const hit3 = act.filter((i) => M.peak[i] >= 3).length, hit10 = act.filter((i) => M.peak[i] >= 10).length;
+      return [
+        ["Sensors reporting", fmtInt(act.length), sub],
+        ["Reached 3× or more", fmtInt(hit3), act.length ? fmtPct((100 * hit3) / act.length) + " of sensors" : ""],
+        ["Reached 10× or more", fmtInt(hit10), act.length ? fmtPct((100 * hit10) / act.length) + " of sensors" : ""],
+        ["Median peak", fmtRatio(median(act.map((i) => M.peak[i]))), "× summer level"],
+      ];
+    }
+    if (view === "days") {
+      let sd = 0, two = 0, mx = 0;
+      for (const i of act) { sd += M.n3[i]; if (M.n3[i] >= 14) two++; mx = Math.max(mx, M.n3[i]); }
+      return [
+        ["Sensor-days at 3×+", fmtInt(sd), sub],
+        ["Two weeks or more", fmtInt(two), "streams at 3×+ for 14+ days"],
+        ["Most days at 3×+", fmtInt(mx), "one stream"],
+        ["Back under 1.5×", isFinite(medRec) ? plural(Math.round(medRec), "day", "days") : "—", "median after a 3× pulse"],
+      ];
+    }
+    const withB = act.filter((i) => M.between[i] >= 0);
+    const b15 = withB.filter((i) => M.between[i] >= 1.5).length, b3 = withB.filter((i) => M.between[i] >= 3).length;
+    return [
+      ["Streams measured", fmtInt(withB.length), "14+ readings, " + sub],
+      ["Between storms ≥1.5×", fmtInt(b15), withB.length ? fmtPct((100 * b15) / withB.length) + " of streams" : ""],
+      ["Between storms ≥3×", fmtInt(b3), "persistently salty"],
+      ["Back under 1.5×", isFinite(medRec) ? plural(Math.round(medRec), "day", "days") : "—", "median after a 3× pulse"],
+    ];
   }
 
   function updateHeadline() {
     $("headline").textContent = headlineText();
-    const s = summary[day], above = s.counts[1] + s.counts[2] + s.counts[3];
-    const tiles = [
-      ["Sensors reporting", fmtInt(s.reporting), "USGS stream gages"],
-      ["Above 1.5× normal", fmtInt(above), s.reporting ? Math.round((100 * above) / s.reporting) + "% of reporting" : ""],
-      ["10× or more", fmtInt(s.counts[3]), "the sharpest salt pulses"],
-    ];
     const box = $("stats"); box.replaceChildren();
-    for (const [label, value, sub] of tiles) {
-      const div = document.createElement("div"); div.className = "stat";
-      const a = document.createElement("div"); a.className = "label"; a.textContent = label;
-      const b = document.createElement("div"); b.className = "value"; b.textContent = value;
-      const c = document.createElement("div"); c.className = "sub"; c.textContent = sub;
-      div.append(a, b, c); box.append(div);
+    for (const [label, value, sub] of tileData()) {
+      const div = h("div", "stat");
+      div.append(h("div", "label", label), h("div", "value", value), h("div", "sub", sub));
+      box.append(div);
     }
+    // state rank on the season scorecard
+    const note = $("rankNote");
+    note.textContent = "";
+    if (scopeAb) {
+      const rows = stateRows(), me = rows.find((r) => r.ab === scopeAb);
+      if (me && me.rank) note.textContent = STATE_NAMES[scopeAb] + " ranks " + ordinal(me.rank) + " of " + stateRows.ranked + " states for the share of sensors that reached 3× their summer level, " + rangeLong(...seasonRange()) + " (" + fmtPct(me.pct3) + ").";
+      else if (me) note.textContent = STATE_NAMES[scopeAb] + " has fewer than " + RANK_MIN_SENSORS + " sensors reporting in this period, so it isn't ranked.";
+    }
+    $("chartTitle").textContent = "Share of " + (scopeAb ? STATE_NAMES[scopeAb] + "'s" : "reporting") + " sensors above their summer level";
   }
 
-  function updateTop() {
-    $("topTitle").textContent = "Saltiest streams on " + fmtDate(data.dates[day]);
-    const rows = [];
-    for (let i = 0; i < data.sites.length; i++) if (ratios[i][day] != null) rows.push(i);
-    rows.sort((a, b) => ratios[b][day] - ratios[a][day]);
-    const t = $("topTable"); t.replaceChildren();
-    const head = t.createTHead().insertRow();
-    ["Stream", "State", "Today (µS/cm)", "Summer normal", "× normal"].forEach((h, i) => {
-      const th = document.createElement("th"); th.textContent = h; if (i >= 2) th.className = "num"; head.append(th);
-    });
-    const body = t.createTBody();
-    for (const i of rows.slice(0, 15)) {
-      const s = data.sites[i], r = body.insertRow();
-      const nameCell = r.insertCell();
-      const a = document.createElement("a"); a.href = siteUrl(s.id); a.target = "_blank"; a.rel = "noopener";
-      a.textContent = s.name; nameCell.append(a);
-      r.insertCell().textContent = s.state;
-      [fmtInt(s.sc[day]), fmtInt(s.base), fmtRatio(ratios[i][day])].forEach((v) => {
-        const td = r.insertCell(); td.textContent = v; td.className = "num";
-      });
-      r.addEventListener("click", (ev) => {
-        if (ev.target.tagName === "A") return;
-        highlighted = i; paintMap();
-        $("mapCard").scrollIntoView({ behavior: "smooth", block: "center" });
-      });
-    }
-    if (!rows.length) {
-      const r = body.insertRow(), td = r.insertCell(); td.colSpan = 5; td.textContent = "No sensors reported on this day.";
-    }
-  }
-
-  // ------------------------------------------------------------- playback
+  // ---------------------------------------------------------------- playback
   function togglePlay() { playing ? stop() : play(); }
   function play() {
-    if (day >= data.dates.length - 1) setDay(0);
+    if (day >= DS.n - 1) setDay(Math.max(0, DS.s0 - 14));
     $("play").textContent = "❚❚ Pause";
     playing = setInterval(() => {
-      if (day >= data.dates.length - 1) { stop(); return; }
-      setDay(day + 1); $("day").value = day;
+      if (day >= DS.n - 1) { stop(); return; }
+      setDay(day + 1);
     }, 140);
   }
   function stop() {
-    if (playing) clearInterval(playing);
-    playing = null; $("play").textContent = "▶ Play";
+    if (playing) { clearInterval(playing); playing = null; if (DS) { renderEvents(); renderRankings(); } }
+    $("play").textContent = "▶ Play";
   }
 
-  function refreshColors() {
+  // ---------------------------------------------------------------- controls
+  function setupControls() {
+    const sel = $("season");
+    sel.replaceChildren(new Option("This season (live)", "live"));
+    seasonsList.forEach((s) => sel.append(new Option(s.label, s.id)));
+    $("seasonBox").hidden = !seasonsList.length;
+    sel.addEventListener("change", () => loadSeason(sel.value).then(syncUrl));
+    $("state").addEventListener("change", () => { stop(); setScope($("state").value); syncUrl(); });
+    $("day").addEventListener("input", () => { stop(); setDay(+$("day").value); });
+    $("play").addEventListener("click", togglePlay);
+    $("save").addEventListener("click", saveImage);
+    $("download").addEventListener("click", downloadCsv);
+    $("showAll").addEventListener("click", () => { showAllRows = !showAllRows; renderRankings(); });
+    document.querySelectorAll("#viewSeg button").forEach((b) => b.addEventListener("click", () => { setView(b.dataset.view); syncUrl(); }));
+    document.querySelectorAll("#rankSeg button").forEach((b) => b.addEventListener("click", () => {
+      rankTab = b.dataset.tab; showAllRows = false;
+      document.querySelectorAll("#rankSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      renderRankings();
+    }));
+    window.addEventListener("resize", debounce(() => { if (DS) { drawChart(); paintMap(); } }, 150));
+    if (matchMedia("(hover: none)").matches) $("mapHint").textContent = "Tap a dot for details, tap again for the USGS page. Pinch to zoom, or use + and −; drag sideways to pan.";
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => refreshColors());
+    new MutationObserver(() => refreshColors()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  }
+
+  function syncUrl() {
+    const p = new URLSearchParams();
+    if (seasonId !== "live") p.set("season", seasonId);
+    if (scopeAb) p.set("state", scopeAb);
+    if (view !== "today") p.set("view", view);
+    const q = p.toString();
+    history.replaceState(null, "", location.pathname + (q ? "?" + q : "") + location.hash);
+  }
+
+  function refreshColors(repaint = true) {
     colors = {
-      normal: cssVar("--normal"), elevated: cssVar("--c1"), high: cssVar("--c2"), extreme: cssVar("--c3"),
-      c2: cssVar("--c2"), surface: cssVar("--surface"), page: cssVar("--page"), ink: cssVar("--ink"),
-      ink2: cssVar("--ink-2"), muted: cssVar("--muted"), grid: cssVar("--grid"), axis: cssVar("--axis"),
-      land: cssVar("--land"), stateLine: cssVar("--state-line"), wash: cssVar("--wash"),
+      surface: cssVar("--surface"), page: cssVar("--page"), ink: cssVar("--ink"), ink2: cssVar("--ink-2"),
+      muted: cssVar("--muted"), grid: cssVar("--grid"), axis: cssVar("--axis"), land: cssVar("--land"),
+      landFaded: cssVar("--land-faded"), stateLine: cssVar("--state-line"), wash: cssVar("--wash"), c2: cssVar("--c2"),
     };
-    buildLegend(); drawChart(); setDay(day);
+    for (const v of ["--normal", "--c1", "--c2", "--c3", "--s1", "--s2", "--s3", "--s4", "--flush", "--lowflow"]) colors[v] = cssVar(v);
+    buildLegend();
+    if (repaint && DS) {
+      $("map").querySelectorAll(".states path").forEach((p) => p.setAttribute("fill", scopeAb && p.dataset.ab !== scopeAb ? colors.landFaded : colors.land));
+      drawChart(); setDay(day, true);
+    }
   }
 
-  function debounce(fn, ms) { let t; return () => { clearTimeout(t); t = setTimeout(fn, ms); }; }
-
-  // ------------------------------------------------------------ save image
-  // A 1200 x 1200 square (exported at 2x) sized for a LinkedIn post.
+  // ---------------------------------------------------------------- save image
+  // A 1200 x 1200 square (exported at 2x) sized for a LinkedIn post: the current
+  // season, view, state and zoom.
   function saveImage() {
     const S = 2, W = 1200, H = 1200, pad = 56;
     const canvas = document.createElement("canvas");
@@ -640,27 +1650,30 @@
     ctx.fillStyle = colors.surface; ctx.fillRect(0, 0, W, H);
 
     ctx.fillStyle = colors.muted; ctx.font = font(600, 18);
-    ctx.fillText("SALT SEASON TRACKER", pad, pad + 10);
-    ctx.fillStyle = colors.ink; ctx.font = font(650, 46);
-    const lines = wrapText(ctx, headlineText(), W - 2 * pad);
-    lines.forEach((ln, k) => ctx.fillText(ln, pad, pad + 74 + k * 56));
-    let yCursor = pad + 74 + (lines.length - 1) * 56 + 46;
-    ctx.fillStyle = colors.ink2; ctx.font = font(400, 22);
+    ctx.fillText(("Salt season tracker" + (DS.archive ? " · " + DS.label : "")).toUpperCase(), pad, pad + 10);
+    ctx.fillStyle = colors.ink; ctx.font = font(650, 44);
+    const lines = wrapText(ctx, headlineText(), W - 2 * pad).slice(0, 3);
+    lines.forEach((ln, k) => ctx.fillText(ln, pad, pad + 72 + k * 54));
+    let yCursor = pad + 72 + (lines.length - 1) * 54 + 44;
+    ctx.fillStyle = colors.ink2; ctx.font = font(400, 21);
     ctx.fillText("Daily specific conductance at USGS stream sensors vs. each stream's May–Oct median", pad, yCursor);
-    yCursor += 26;
+    yCursor += 22;
 
-    // legend
-    let lx = pad; yCursor += 22;
-    ctx.font = font(400, 20);
-    CATS.forEach((c) => {
-      ctx.beginPath(); ctx.arc(lx + 8, yCursor - 7, Math.max(c.r, 3.2) * 1.5, 0, 2 * Math.PI);
-      ctx.fillStyle = colors[c.key]; ctx.fill();
+    let lx = pad; yCursor += 24;
+    ctx.font = font(600, 19); ctx.fillStyle = colors.ink;
+    ctx.fillText(VIEWS[view].legend, lx, yCursor); lx += ctx.measureText(VIEWS[view].legend).width + 26;
+    ctx.font = font(400, 19);
+    viewScale().forEach((c) => {
+      ctx.beginPath(); ctx.arc(lx + 8, yCursor - 7, Math.max(c.r, 3.2) * 1.4, 0, 2 * Math.PI);
+      ctx.fillStyle = colors[c.color]; ctx.fill();
       ctx.fillStyle = colors.ink2; ctx.fillText(c.label, lx + 22, yCursor);
-      lx += 22 + ctx.measureText(c.label).width + 30;
+      lx += 22 + ctx.measureText(c.label).width + 24;
     });
 
-    const mapTop = yCursor + 20, mapW = W - 2 * pad + 40, mapH = mapW * 610 / 975;
+    const mapTop = yCursor + 16, mapW = W - 2 * pad + 40, mapH = mapW * MH / MW;
+    forceDotScale = 1; paintMap();
     const clone = $("map").cloneNode(true);
+    forceDotScale = 0; paintMap();
     clone.querySelector("#hl")?.remove();
     clone.setAttribute("xmlns", svgNS);
     clone.setAttribute("width", mapW * S); clone.setAttribute("height", mapH * S);
@@ -670,40 +1683,36 @@
     img.onload = () => {
       ctx.drawImage(img, pad - 20, mapTop, mapW, mapH);
       URL.revokeObjectURL(url);
-
-      // season strip: share of sensors above normal each day, today marked
-      const sTop = mapTop + mapH + 12, sBottom = H - pad - 54, sH = sBottom - sTop - 26;
+      if (zoomV.k > 1.05) {
+        ctx.fillStyle = colors.muted; ctx.font = font(400, 15); ctx.textAlign = "right";
+        ctx.fillText("Zoomed view", W - pad, mapTop + 16); ctx.textAlign = "left";
+      }
+      const sTop = mapTop + mapH + 10, sBottom = H - pad - 52, sH = sBottom - sTop - 26;
       if (sH > 50) {
         ctx.fillStyle = colors.ink2; ctx.font = font(400, 17);
-        ctx.fillText("Share of sensors above 1.5× their summer level, last " + summary.length + " days", pad, sTop + 14);
-        const share = summary.map((s) => s.reporting ? s.counts.map((c) => c / s.reporting) : [0, 0, 0, 0]);
+        ctx.fillText("Share of " + (scopeAb ? STATE_NAMES[scopeAb] + "'s " : "") + "sensors above 1.5× their summer level, " + fmtDate(DS.dates[0], SHORT) + " – " + fmtDate(DS.dates[DS.n - 1]), pad, sTop + 14);
+        const share = DS.sum.map((s) => (s.reporting ? s.counts.map((c) => c / s.reporting) : [0, 0, 0, 0]));
         const peak = Math.max(0.05, ...share.map((s) => s[1] + s[2] + s[3]));
         const x0 = pad, cw = (W - 2 * pad) / share.length, base = sBottom;
         share.forEach((s, d) => {
           let acc = 0;
           for (let k = 1; k <= 3; k++) {
-            const h = (s[k] / peak) * sH; if (h <= 0) continue;
-            ctx.fillStyle = colors[CATS[k].key];
-            ctx.fillRect(x0 + d * cw + 0.5, base - acc - h, Math.max(1, cw - 1.5), Math.max(0, h - (acc > 0 ? 1 : 0)));
-            acc += h;
+            const hh = (s[k] / peak) * sH; if (hh <= 0) continue;
+            ctx.fillStyle = colors[CATS[k].color];
+            ctx.fillRect(x0 + d * cw + 0.3, base - acc - hh, Math.max(0.8, cw - (cw > 4 ? 1.5 : 0.6)), Math.max(0, hh - (acc > 0 ? 1 : 0)));
+            acc += hh;
           }
         });
         ctx.fillStyle = colors.axis; ctx.fillRect(x0, base, W - 2 * pad, 1);
         const mx = x0 + day * cw + cw / 2;
         ctx.fillStyle = colors.ink;
         ctx.beginPath(); ctx.moveTo(mx, base + 3); ctx.lineTo(mx - 6, base + 12); ctx.lineTo(mx + 6, base + 12); ctx.fill();
-        ctx.fillStyle = colors.muted; ctx.font = font(400, 15);
-        const short = { month: "short", day: "numeric" };
-        ctx.fillText(fmtDate(data.dates[0], short), x0, base + 20);
-        ctx.textAlign = "right"; ctx.fillText(fmtDate(data.dates[data.dates.length - 1], short), W - pad, base + 20);
-        ctx.textAlign = "left";
       }
-
-      ctx.fillStyle = colors.muted; ctx.font = font(400, 18);
+      ctx.fillStyle = colors.muted; ctx.font = font(400, 17);
       ctx.fillText("Data: USGS Water Data API (provisional) · Tidal sites excluded", pad, H - pad + 8);
       ctx.textAlign = "right"; ctx.fillStyle = colors.ink2; ctx.font = font(600, 18);
       ctx.fillText("Shantanu Bhide · shantanubhide.com", W - pad, H - pad + 8);
-      if (data.demo) {
+      if (DS.raw.demo) {
         ctx.fillStyle = "#c0392b"; ctx.font = font(700, 20);
         ctx.fillText("SYNTHETIC TEST DATA", W - pad, pad + 10);
       }
@@ -711,7 +1720,7 @@
       canvas.toBlob((png) => {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(png);
-        a.download = "salt-tracker-" + data.dates[day] + ".png";
+        a.download = "salt-tracker-" + (DS.archive ? DS.id + "-" : "") + view + "-" + (scopeAb ? scopeAb + "-" : "") + DS.dates[day] + ".png";
         document.body.append(a); a.click(); a.remove();
       }, "image/png");
     };
