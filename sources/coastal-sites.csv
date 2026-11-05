@@ -1,0 +1,4 @@
+site_id,action,note
+# Manual overrides for the coastal filter in scripts/fetch_salt.py.
+# action "keep" always includes a sensor; "drop" always leaves it out.
+# Example: USGS-01649500,keep,urban stream above the head of tide

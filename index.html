@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Salt Season Tracker</title>
 <meta name="description" content="Daily road-salt pulses in U.S. streams, from USGS specific conductance sensors, compared with each stream's own summer level. Replay past winters, zoom to a state, and see which streams stay salty between storms.">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script data-goatcounter="https://shantanubhide.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <style>
   :root {
     color-scheme: light;
@@ -361,9 +365,14 @@
       <li><b>Salt memory.</b> After a pulse of 3× or more, “days back under 1.5×” counts the days from its peak to the first reading below 1.5×. A stream that stays above 1.5× between storms may be fed by salt stored in soil and groundwater.</li>
       <li><b>Salt storms.</b> A sensor “spikes” when it reaches 3× after two days below 3×. A storm is a day when at least 8 sensors (and at least 3% of those reporting) spike in one region, merged with nearby days and regions. Regions: Northeast (New England and NY), Mid-Atlantic (NJ, PA, DE, MD, DC, VA, WV), Southeast, Midwest, Plains and South Central, and West.</li>
       <li><b>Flow.</b> Daily mean discharge (parameter 00060) at the same gages, where it is measured. “Typical flow” is the median daily flow over the period shown. Many sensors have no flow gage, and northern gages often skip ice-affected days.</li>
+      <li><b>Coastal sensors.</b> Sensors the tide reaches are left out, because their salty readings are seawater, not road salt: those where USGS also records salinity, tidally filtered streamflow or water levels against sea level, and those with a gage below 15 ft elevation within 25 km of the ocean or Gulf coast. <span id="excludedNote"></span></li>
       <li><b>Caveats.</b> Data are provisional and can change. Not every spike is road salt: drought, wastewater, mining and sensor problems can also raise conductance. Tidal and estuary sensors are left out. Conductance is not the same as chloride concentration.</li>
       <li><b>Data.</b> <a href="https://api.waterdata.usgs.gov/" rel="noopener">USGS Water Data API</a>, daily mean specific conductance (00095) and discharge (00060), refreshed every morning. Past winters are archived each May. <span id="updated"></span></li>
     </ul>
+    <details id="excludedBox" hidden>
+      <summary id="excludedSummary">Show the coastal sensors left out</summary>
+      <div class="table-scroll"><table id="excludedTable"></table></div>
+    </details>
   </div>
 
   <footer>Built by <a href="https://shantanubhide.com/">Shantanu Bhide</a>, water resources engineer.</footer>
@@ -452,7 +461,7 @@
   function debounce(fn, ms) { let t; return () => { clearTimeout(t); t = setTimeout(fn, ms); }; }
 
   // ---------------------------------------------------------------- state
-  let statesGeo, liveRaw, seasonsList = [];
+  let statesGeo, liveRaw, seasonsList = [], excludedDoc = null;
   const cache = {};
   let DS = null;               // prepared dataset on screen
   let seasonId = "live";
@@ -476,8 +485,9 @@
     fetch("assets/states.json").then((r) => r.json()),
     fetch("data/salt.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error("data/salt.json " + r.status); return r.json(); }),
     fetch("data/seasons.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : { seasons: [] })).catch(() => ({ seasons: [] })),
-  ]).then(([geo, live, idx]) => {
-    statesGeo = geo; liveRaw = live;
+    fetch("data/excluded-sites.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+  ]).then(([geo, live, idx, exc]) => {
+    statesGeo = geo; liveRaw = live; excludedDoc = exc;
     if (!live.sites || !live.sites.length) throw new Error("No sites in data file");
     // a demo archive only belongs next to demo live data
     seasonsList = (idx.seasons || []).filter((s) => s.file && (!!s.demo === !!live.demo));
@@ -655,6 +665,7 @@
     $("kicker").textContent = ds.archive ? "Salt season tracker · " + ds.label : "Salt season tracker";
     buildCircles();
     fillStateSelect();
+    renderExcluded();
     const slider = $("day");
     slider.max = ds.n - 1;
     let d0 = defaultDay();
@@ -667,6 +678,27 @@
     setScope(scopeAb, { animate: !opts.initial, keepDay: true });
     setDay(d0, true);
     updateEarlyHint();
+  }
+
+  // Sensors the coastal filter left out of this data file, with the reason for each.
+  function renderExcluded() {
+    const box = $("excludedBox"), set = excludedDoc && excludedDoc.sets && excludedDoc.sets[DS.archive ? DS.id : "live"];
+    const rows = set && set.sites ? set.sites : [];
+    box.hidden = !rows.length;
+    $("excludedNote").textContent = rows.length ? plural(rows.length, "sensor is", "sensors are") + " left out of " + (DS.archive ? DS.label.replace("Winter", "winter") : "this season's map") + "." : "";
+    if (!rows.length) return;
+    $("excludedSummary").textContent = "Show the " + plural(rows.length, "coastal sensor", "coastal sensors") + " left out, and why";
+    const t = $("excludedTable"); t.replaceChildren();
+    const hr = t.createTHead().insertRow();
+    ["Stream", "State", "Why it's left out"].forEach((x) => hr.append(h("th", "", x)));
+    const body = t.createTBody();
+    for (const r of rows) {
+      const tr = body.insertRow(), a = document.createElement("a");
+      a.href = siteUrl(r.id); a.target = "_blank"; a.rel = "noopener"; a.textContent = r.name || r.id;
+      tr.insertCell().append(a);
+      tr.insertCell().textContent = r.state || "";
+      tr.insertCell().textContent = r.reason ? r.reason.charAt(0).toUpperCase() + r.reason.slice(1) : "";
+    }
   }
 
   function defaultDay() {

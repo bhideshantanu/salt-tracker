@@ -12,6 +12,8 @@ What it does, in plain words
 5. Keeps one archive file per finished winter (November to April), for example
    data/season-2025-26.json, listed in data/seasons.json. The archive for the most
    recent finished winter is built automatically the first time it is missing.
+6. Leaves out tidal and coastal sensors, where salty readings are seawater rather than
+   road salt (see "coastal filter" below), and lists them in data/excluded-sites.json.
 
 Runs
   python scripts/fetch_salt.py               daily update (fast: only the last 21 days)
@@ -20,7 +22,8 @@ Runs
   python scripts/fetch_salt.py --demo        write SYNTHETIC test data for previewing the page
 
 A full rebuild also happens automatically when data/salt.json is missing, was made by
-an older version of this script, or its normal levels are more than 30 days old.
+an older version of this script, its normal levels are more than 30 days old, or the
+coastal filter changed (including edits to sources/coastal-sites.csv).
 
 Optional: set the environment variable API_USGS_PAT to a free USGS API key
 (https://api.waterdata.usgs.gov/signup/) for higher rate limits.
@@ -64,6 +67,26 @@ BASELINE_MAX_US = 3000.0  # higher "normal" usually means tidal or naturally sal
 REBUILD_AFTER_DAYS = 30
 SEASON_MIN_DAYS = 30  # an archived stream needs this many winter readings
 ID_CHUNK = 300  # sites per streamflow request
+
+# Coastal filter. A sensor is left out when either rule applies:
+#  A. USGS also records a tide-only measurement at the same gage (salinity, tidally
+#     filtered streamflow, or water level against a sea-level datum), or
+#  B. its gage sits below COAST_MAX_ALT_FT and within COAST_MAX_KM of the ocean or
+#     Gulf coastline (including large estuaries).
+# sources/coastal-sites.csv overrides both: "keep" always includes a sensor, "drop"
+# always leaves it out.
+FILTER_VERSION = 1
+TIDE_PARAMS = {
+    "00480": "salinity", "90860": "salinity",
+    "72137": "tidally filtered streamflow",
+    "62619": "estuary or ocean water level", "62620": "estuary or ocean water level",
+    "72279": "tidal water level",
+}
+COAST_MAX_ALT_FT = 15.0
+COAST_MAX_KM = 25.0
+COASTLINE_PATH = ROOT / "sources" / "coastline-us.json"
+MANUAL_LIST_PATH = ROOT / "sources" / "coastal-sites.csv"
+EXCLUDED_PATH = DATA_DIR / "excluded-sites.json"
 
 # The lower 48 split into five boxes so each download stays a manageable size.
 TILES = [
@@ -212,7 +235,7 @@ def fetch_site_info(site_ids: list[str]) -> dict[str, dict]:
             df, _ = waterdata.get_monitoring_locations(
                 monitoring_location_id=chunk,
                 properties=["monitoring_location_id", "monitoring_location_name",
-                            "state_name", "site_type_code", "site_type"],
+                            "state_name", "site_type_code", "site_type", "altitude"],
             )
             return df
 
@@ -226,8 +249,17 @@ def fetch_site_info(site_ids: list[str]) -> dict[str, dict]:
                 "type": row.get("site_type") or "",
                 "lon": lon,
                 "lat": lat,
+                "altitude": _num(row.get("altitude")),
             }
     return info
+
+
+def _num(v):
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return None
+    return None if math.isnan(v) else v
 
 
 def _lon_lat(geom):
@@ -334,6 +366,139 @@ def assemble(values: dict[str, dict[str, float]], sites: dict[str, dict],
     return {"dates": dates, "sites": out_sites}
 
 
+# ---------------------------------------------------------------- coastal filter
+
+
+def load_manual_list(path: Path = MANUAL_LIST_PATH) -> dict[str, tuple[str, str]]:
+    """sources/coastal-sites.csv rows: site_id,action,note (action is keep or drop)."""
+    out = {}
+    if not path.exists():
+        return out
+    import csv
+    for row in csv.DictReader(line for line in path.read_text().splitlines()
+                              if line.strip() and not line.startswith("#")):
+        sid = (row.get("site_id") or "").strip()
+        act = (row.get("action") or "").strip().lower()
+        if sid and act in ("keep", "drop"):
+            out[sid] = (act, (row.get("note") or "").strip())
+    return out
+
+
+def filter_signature() -> dict:
+    """Everything that decides which sensors are left out. A change triggers a rebuild."""
+    import hashlib
+    manual = MANUAL_LIST_PATH.read_bytes() if MANUAL_LIST_PATH.exists() else b""
+    return {"version": FILTER_VERSION, "max_altitude_ft": COAST_MAX_ALT_FT,
+            "max_coast_km": COAST_MAX_KM, "list": hashlib.sha1(manual).hexdigest()[:12]}
+
+
+_TIDE_CACHE: dict = {}
+
+
+def fetch_tide_flags() -> dict[str, set[str]] | None:
+    """Sites where USGS records a tide-only measurement, by parameter code.
+
+    Returns None if the lookup failed, so rule A is skipped (and reported) for this run.
+    """
+    if "flags" in _TIDE_CACHE:
+        return _TIDE_CACHE["flags"]
+    from dataretrieval import waterdata
+
+    flags: dict[str, set[str]] = {}
+    try:
+        for bbox in TILES:
+            def call(bbox=bbox):
+                df, _ = waterdata.get_time_series_metadata(
+                    parameter_code=list(TIDE_PARAMS), bbox=bbox, skip_geometry=True,
+                    properties=["monitoring_location_id", "parameter_code"],
+                )
+                return df
+            df = _with_retries(call, f"tide-gage lookup for box {bbox}")
+            for sid, code in zip(df.get("monitoring_location_id", []), df.get("parameter_code", [])):
+                if str(code) in TIDE_PARAMS:
+                    flags.setdefault(str(sid), set()).add(str(code))
+        log.info("tide-gage lookup: %d sites with tide-only measurements", len(flags))
+    except Exception as exc:
+        log.error("Tide-gage lookup failed (%s); only the elevation rule is used this time.", exc)
+        flags = None
+    _TIDE_CACHE["flags"] = flags
+    return flags
+
+
+_COAST: dict = {}
+
+
+def coast_km(lon: float, lat: float) -> float:
+    """Great-circle distance in km to the nearest point of the U.S. ocean coastline."""
+    import numpy as np
+    if "xy" not in _COAST:
+        pts = json.loads(COASTLINE_PATH.read_text())["lonlat"]
+        arr = np.radians(np.array(pts, dtype=float).reshape(-1, 2))
+        _COAST["xy"] = (arr[:, 0], arr[:, 1], np.cos(arr[:, 1]))
+    lon2, lat2, cos2 = _COAST["xy"]
+    lo, la = math.radians(lon), math.radians(lat)
+    a = np.sin((lat2 - la) / 2) ** 2 + math.cos(la) * cos2 * np.sin((lon2 - lo) / 2) ** 2
+    return float(6371.0 * 2 * np.arcsin(np.sqrt(a.min())))
+
+
+def coastal_exclusions(sites: dict[str, dict]) -> tuple[dict[str, dict], bool]:
+    """Which of these sensors to leave out, with a plain-language reason for each."""
+    manual = load_manual_list()
+    flags = fetch_tide_flags()
+    out = {}
+    for sid, m in sites.items():
+        action, note = manual.get(sid, ("", ""))
+        if action == "keep":
+            continue
+        reasons = []
+        if action == "drop":
+            reasons.append("on the manual list" + (f" ({note})" if note else ""))
+        if flags and sid in flags:
+            names = sorted({TIDE_PARAMS[c] for c in flags[sid]})
+            reasons.append("USGS also measures " + " and ".join(names) + " here")
+        alt, km = m.get("altitude"), None
+        if alt is not None and alt < COAST_MAX_ALT_FT and m.get("lon") is not None:
+            km = coast_km(m["lon"], m["lat"])
+            if km <= COAST_MAX_KM:
+                reasons.append(f"gage at {alt:.0f} ft elevation, {km:.0f} km from the coast")
+        if reasons:
+            out[sid] = {"id": sid, "name": m.get("name", ""), "state": m.get("state", ""),
+                        "lon": round(m["lon"], 4) if m.get("lon") is not None else None,
+                        "lat": round(m["lat"], 4) if m.get("lat") is not None else None,
+                        "altitude_ft": None if alt is None else round(alt, 1),
+                        "coast_km": None if km is None else round(km, 1),
+                        "reason": "; ".join(reasons)}
+    log.info("coastal filter: leaving out %d of %d sensors", len(out), len(sites))
+    return out, flags is not None
+
+
+def _with_data(excluded: dict, values: dict, dates: list[str]) -> dict:
+    """Only list left-out sensors that reported during the period (others wouldn't show anyway)."""
+    return {k: v for k, v in excluded.items() if any(d in values.get(k, {}) for d in dates)}
+
+
+def record_exclusions(set_id: str, excluded: dict[str, dict], tide_ok: bool) -> None:
+    """Save which sensors were left out of one data file, for the page and for review."""
+    doc = {}
+    if EXCLUDED_PATH.exists():
+        try:
+            doc = json.loads(EXCLUDED_PATH.read_text())
+        except json.JSONDecodeError:
+            doc = {}
+    doc["rules"] = {
+        "A": "USGS also records salinity, tidally filtered streamflow, or water level "
+             "against a sea-level datum at the gage",
+        "B": f"gage below {COAST_MAX_ALT_FT:.0f} ft elevation and within "
+             f"{COAST_MAX_KM:.0f} km of the ocean or Gulf coast",
+        "manual": "sources/coastal-sites.csv (keep or drop)",
+    }
+    sets = doc.setdefault("sets", {})
+    sets[set_id] = {"updated_utc": _now_utc(), "tide_lookup_ok": tide_ok,
+                    "sites": sorted(excluded.values(), key=lambda r: (r["state"], r["name"]))}
+    EXCLUDED_PATH.parent.mkdir(parents=True, exist_ok=True)
+    EXCLUDED_PATH.write_text(json.dumps(doc, indent=1, ensure_ascii=False) + "\n")
+
+
 # ---------------------------------------------------------------- saving
 
 
@@ -389,14 +554,19 @@ def run_full(today: dt.date) -> dict:
     baselines = compute_baselines(daily)
     sites_meta = fetch_site_info(list(baselines))
     sites = {s: m for s, m in sites_meta.items() if keep_site(m)}
+    excluded, tide_ok = coastal_exclusions(sites)
     values = _to_values(daily[daily["site"].isin(sites)])
     dates = date_window(_last_full_day(daily, today), DISPLAY_DAYS)
+    excluded = _with_data(excluded, values, dates)
+    sites = {s: m for s, m in sites.items() if s not in excluded}
     flow = fetch_flow(sites, dt.date.fromisoformat(dates[0]), today)
     payload = assemble(values, sites, baselines, dates, flows=_to_values(flow, "q"))
     payload["baseline"] = {
         "months": "May-Oct", "computed_utc": _now_utc(),
         "from": start.isoformat(), "to": today.isoformat(),
     }
+    payload["filter"] = filter_signature()
+    record_exclusions("live", excluded, tide_ok)
     return payload
 
 
@@ -420,6 +590,7 @@ def run_update(prev: dict, today: dt.date) -> dict:
     dates = date_window(_last_full_day(daily, today), DISPLAY_DAYS)
     payload = assemble(values, sites, baselines, dates, flows=flows)
     payload["baseline"] = prev["baseline"]
+    payload["filter"] = prev.get("filter")
     return payload
 
 
@@ -428,6 +599,9 @@ def needs_full(prev: dict | None, today: dt.date) -> bool:
         return True
     if prev.get("version", 1) < FORMAT_VERSION:
         log.info("data/salt.json was made by an older version of this script: rebuilding")
+        return True
+    if prev.get("filter") != filter_signature():
+        log.info("The coastal filter changed: rebuilding")
         return True
     computed = prev.get("baseline", {}).get("computed_utc")
     if not computed:
@@ -465,12 +639,17 @@ def build_season(start_year: int) -> dict:
     baselines = compute_baselines(daily)  # May-October of the same year
     sites_meta = fetch_site_info(list(baselines))
     sites = {s: m for s, m in sites_meta.items() if keep_site(m)}
+    excluded, tide_ok = coastal_exclusions(sites)
     values = _to_values(daily[daily["site"].isin(sites)])
     dates = date_range(win_start, win_end)
+    excluded = _with_data(excluded, values, dates)
+    sites = {s: m for s, m in sites.items() if s not in excluded}
     flow = fetch_flow(sites, win_start, win_end, strict=True)
     payload = assemble(values, sites, baselines, dates,
                        flows=_to_values(flow, "q"), archive=True)
     payload["baseline"] = {"months": f"May-Oct {y}", "computed_utc": _now_utc()}
+    payload["filter"] = filter_signature()
+    payload["_excluded"] = (excluded, tide_ok)
     return payload
 
 
@@ -506,9 +685,11 @@ def write_seasons_index() -> None:
 
 def archive_season(start_year: int) -> None:
     payload = finish_payload(build_season(start_year), demo=False, season=start_year)
+    excluded, tide_ok = payload.pop("_excluded")
     if not payload["sites"]:
         raise RuntimeError(f"No streams qualified for the {season_label(start_year)} archive")
     write_output(payload, season_path(start_year))
+    record_exclusions(season_id(start_year), excluded, tide_ok)
     write_seasons_index()
 
 
@@ -518,10 +699,13 @@ def ensure_latest_archive(today: dt.date) -> None:
     path = season_path(y)
     if path.exists():
         try:
-            if not json.loads(path.read_text()).get("demo"):
+            head = json.loads(path.read_text())
+            if not head.get("demo") and head.get("filter") == filter_signature():
                 if not SEASONS_INDEX.exists():
                     write_seasons_index()
                 return
+            if not head.get("demo"):
+                log.info("Rebuilding the %s archive with the current coastal filter", season_label(y))
         except json.JSONDecodeError:
             pass
     try:
@@ -672,6 +856,14 @@ def main(argv=None) -> int:
         write_output(finish_payload(live, demo=True))
         write_output(finish_payload(arch, demo=True, season=y), season_path(y))
         write_seasons_index()
+        fake = {f"TEST-C{i}": {"id": f"TEST-C{i}", "name": f"Synthetic coastal site {i}", "state": st,
+                               "lon": lo, "lat": la, "altitude_ft": alt, "coast_km": km, "reason": why}
+                for i, (st, lo, la, alt, km, why) in enumerate([
+                    ("FL", -81.73, 30.2, 2.0, 3.1, "USGS also measures salinity here"),
+                    ("LA", -90.56, 29.63, 1.0, 12.0, "gage at 1 ft elevation, 12 km from the coast"),
+                    ("SC", -81.01, 32.24, 4.0, 19.0, "gage at 4 ft elevation, 19 km from the coast")])}
+        for set_id in ("live", season_id(y)):
+            record_exclusions(set_id, fake, True)
         return 0
     if args.season:
         if args.season > latest_finished_season(today):

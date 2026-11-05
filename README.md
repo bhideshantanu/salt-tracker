@@ -34,7 +34,8 @@ There are three parts, and you never have to run anything on your own computer.
 | Part | File | What it does |
 |---|---|---|
 | Data script | `scripts/fetch_salt.py` | Downloads daily mean specific conductance (USGS parameter 00095) for every stream sensor in the lower 48 states, works out each stream's May–October median ("normal"), downloads daily streamflow (00060) at the same sensors, and saves the last 185 days to `data/salt.json`. It also archives each finished winter (see below). |
-| Data files | `data/salt.json`, `data/season-YYYY-YY.json`, `data/seasons.json` | The live data, one archive per past winter, and the list of archives for the season picker. |
+| Data files | `data/salt.json`, `data/season-YYYY-YY.json`, `data/seasons.json`, `data/excluded-sites.json` | The live data, one archive per past winter, the list of archives for the season picker, and the coastal sensors left out (with reasons). |
+| Coastal filter inputs | `sources/coastline-us.json`, `sources/coastal-sites.csv` | The U.S. ocean coastline (Natural Earth, public domain) and a short manual keep/drop list. |
 | Daily robot | `.github/workflows/update-data.yml` | A GitHub Actions workflow. GitHub runs the data script for free every morning at 13:37 UTC and saves the new files in `data/` back into this repository. |
 | Web page | `index.html` | Everything visitors see. GitHub Pages hosts it. |
 
@@ -140,6 +141,14 @@ a demo banner until it does.
   days. A stream needs at least 60 summer days and a normal under 3,000 µS/cm.
 - **Sites:** USGS sites typed as "Stream" in the lower 48 only. Tidal streams, estuaries,
   lakes and wells are left out.
+- **Coastal filter:** many tidal reaches are still typed "Stream", and their salty readings
+  are seawater, not road salt. A sensor is left out when USGS also records salinity,
+  tidally filtered streamflow or water level against sea level at the gage, or when the
+  gage is below 15 ft elevation and within 25 km of the ocean or Gulf coastline. Every
+  sensor left out is listed with its reason in `data/excluded-sites.json` and on the page.
+- **Overriding the filter:** add a line to `sources/coastal-sites.csv`, such as
+  `USGS-01649500,keep,urban stream above the head of tide` (or `drop`). The next morning's
+  run rebuilds the live data and last winter's archive with the change.
 - **Categories:** under 1.5×, 1.5–3×, 3–10×, 10× or more of normal.
 - **Season:** metrics run from November 1 to the selected day.
 - **Between storms:** 25th percentile of a stream's daily ratios over the season (14+
