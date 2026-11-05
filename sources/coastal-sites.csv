@@ -1,4 +1,27 @@
 site_id,action,note
 # Manual overrides for the coastal filter in scripts/fetch_salt.py.
 # action "keep" always includes a sensor; "drop" always leaves it out.
-# Example: USGS-01649500,keep,urban stream above the head of tide
+# Reviewed Nov 5, 2026 against winter 2025-26 data.
+#
+# Freshwater streams caught by the elevation rule; winter spikes follow snowstorms (road salt)
+USGS-01651800,keep,urban stream; road-salt pulses Dec-Mar
+USGS-01651003,keep,urban stream; road-salt pulses Dec-Mar
+USGS-01649500,keep,urban stream above the head of tide; road-salt pulses with snowmelt
+USGS-01467150,keep,suburban stream; road-salt pulses Dec-Mar
+USGS-01467081,keep,suburban stream; road-salt pulses with snowmelt
+USGS-01408029,keep,road-salt pulses Dec-Feb with high flow
+USGS-01585075,keep,road-salt pulses after the Dec 15 storm and in Feb
+USGS-01302020,keep,freshwater urban stream at 50 ft; USGS salinity series is computed from conductance
+# Freshwater sites caught by the elevation rule (above dams or fresh tidal reaches); no seawater signal
+USGS-01474500,keep,above Fairmount Dam
+USGS-01479000,keep,freshwater stream
+USGS-01480025,keep,freshwater stream
+USGS-01483155,keep,freshwater stream
+USGS-01579550,keep,below Conowingo Dam; fresh upper bay
+USGS-01467005,keep,fresh tidal reach
+USGS-01484525,keep,millpond outlet; fresh
+USGS-12100490,keep,inland river; gage datum is local
+# Tidal or brackish sites the two rules missed (seawater signal all season)
+USGS-02304517,drop,brackish tidal reach; above 50x all winter
+USGS-02359223,drop,coastal brackish river
+USGS-02110755,drop,Atlantic Intracoastal Waterway
