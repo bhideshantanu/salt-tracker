@@ -24,8 +24,15 @@ Live page (once set up): **https://shantanubhide.com/salt-tracker/**
 - **Rankings:** saltiest streams today, a season scorecard for every stream (peak, peak
   date, days at 1.5×/3×/10×, days back under 1.5× after a pulse, between-storm level, flow
   at peak) and for every state. Sortable, clickable, downloadable as CSV.
+- **Stream chart:** hover a dot for a quick summary; click it (tap twice on a phone) to
+  open a larger chart under the map: daily salinity against the stream's summer level
+  with 3× and 10× lines, and streamflow against its typical flow, over the whole data
+  window. Hover the chart to read any day; click it to show that day on the map. The panel
+  also has the stream's season numbers, a daily table, a one-stream CSV and a link to the
+  USGS page. Clicking a stream in the rankings opens it too; Esc or Close shuts it.
 - **Save image:** a 2400 × 2400 PNG of the current season, view, state and zoom.
-- Links like `?season=2025-26&state=PA&view=peak` open the page in that state.
+- Links like `?season=2025-26&state=PA&view=peak` open the page in that state;
+  add `&site=USGS-01646500` to open one stream's chart.
 
 ## How it works
 

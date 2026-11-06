@@ -178,6 +178,17 @@
   .map-hint { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
   #chart { width: 100%; display: block; }
 
+  .site-panel { border-top: 1px solid var(--grid); margin-top: 14px; padding-top: 14px; }
+  .site-panel[hidden] { display: none; }
+  .site-panel h3 { font-size: 16px; margin: 0 0 2px; font-weight: 600; }
+  .sp-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .sp-actions a.btn { display: inline-flex; align-items: center; font-size: 14px; color: var(--ink); text-decoration: none; border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; background: var(--surface); }
+  .sp-actions a.btn:hover { background: var(--wash); }
+  .sp-stats { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 4px 0 10px; font-size: 13px; color: var(--ink-2); }
+  .sp-stats div b { display: block; font-size: 20px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  #spChart { width: 100%; display: block; touch-action: pan-y; }
+  #spTable td, #spTable th { font-size: 13px; }
+
   .tooltip {
     position: absolute; pointer-events: none; z-index: 5; display: none;
     background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
@@ -310,8 +321,22 @@
         <button type="button" id="zreset" aria-label="Show the whole country" title="Whole country">⤢</button>
       </div>
     </div>
-    <p class="map-hint" id="mapHint">Hover a dot for details, click it for the USGS page. Drag to pan; zoom with + and −, a pinch, or Ctrl/⌘ + scroll.</p>
+    <p class="map-hint" id="mapHint">Hover a dot for details; click it for a larger chart of that stream. Drag to pan; zoom with + and −, a pinch, or Ctrl/⌘ + scroll.</p>
     <div class="tooltip" id="mapTip"></div>
+    <div class="site-panel" id="sitePanel" hidden>
+      <div class="card-head">
+        <div><h3 id="spName"></h3><p class="note" id="spSub"></p></div>
+        <div class="sp-actions">
+          <a class="btn" id="spUsgs" href="#" target="_blank" rel="noopener">USGS page ↗</a>
+          <button type="button" id="spCsv">Download CSV</button>
+          <button type="button" id="spClose">Close</button>
+        </div>
+      </div>
+      <div class="sp-stats" id="spStats"></div>
+      <div id="spWrap"><svg id="spChart" role="img"></svg></div>
+      <div class="tooltip" id="spTip"></div>
+      <details id="spDetails"><summary>Show daily values as a table</summary><div class="table-scroll"><table id="spTable"></table></div></details>
+    </div>
   </div>
 
   <div class="card" id="chartCard">
@@ -499,7 +524,10 @@
     if (wantView && VIEWS[wantView]) setView(wantView, false);
     const st = (params.get("state") || "").toUpperCase();
     if (STATE_NAMES[st]) scopeAb = st;
-    return loadSeason(seasonsList.some((s) => s.id === wantSeason) ? wantSeason : "live", { initial: true });
+    return loadSeason(seasonsList.some((s) => s.id === wantSeason) ? wantSeason : "live", { initial: true }).then(() => {
+      const sid = params.get("site"), i = sid ? DS.sites.findIndex((x) => x.id === sid) : -1;
+      if (i >= 0) { zoomToSite(i); openSitePanel(i, { scroll: true }); }
+    });
   }).catch((err) => {
     $("headline").textContent = "The data didn't load.";
     $("dek").textContent = "Try refreshing the page. (" + err.message + ")";
@@ -678,6 +706,7 @@
     setScope(scopeAb, { animate: !opts.initial, keepDay: true });
     setDay(d0, true);
     updateEarlyHint();
+    if (panelId) { const pi = panelIndex(); if (pi >= 0) { highlighted = pi; renderSitePanel(); paintMap(); } else closeSitePanel(); }
   }
 
   // Sensors the coastal filter left out of this data file, with the reason for each.
@@ -742,6 +771,8 @@
     else sp.setAttribute("visibility", "hidden");
     $("map").querySelectorAll(".states path").forEach((p) => p.setAttribute("fill", ab && p.dataset.ab !== ab ? colors.landFaded : colors.land));
     highlighted = -1;
+    const pi = panelIndex();
+    if (pi >= 0) { if (!ab || DS.sites[pi].state === ab) highlighted = pi; else closeSitePanel(false); }
     if (opts.animate !== false) zoomToScope(path); else { if (path) zoomToScope(path, true); else setView_(zoomV = { x0: 0, y0: 0, k: 1 }); }
     if (!opts.keepDay) setDay(day, true);
   }
@@ -894,6 +925,7 @@
   }
 
   let tipSite = -1, touchTip = -1;
+  let panelId = null;          // USGS id of the stream open in the chart panel
   function setupMapEvents() {
     const map = $("map"), pts = new Map();
     let drag = null, pinch = null, moved = false;
@@ -950,7 +982,8 @@
       if (i < 0) { hideTip(); touchTip = -1; return; }
       const touchLike = ev.pointerType === "touch" || matchMedia("(hover: none)").matches;
       if (touchLike && touchTip !== i) { touchTip = i; showSiteTip(i, ev); return; } // first tap shows details
-      window.open(siteUrl(DS.sites[i].id), "_blank", "noopener");
+      hideTip(); touchTip = -1;
+      openSitePanel(i, { scroll: true });
     });
     map.addEventListener("wheel", (ev) => {
       if (!(ev.ctrlKey || ev.metaKey)) return; // plain scrolling keeps scrolling the page
@@ -1017,7 +1050,7 @@
     tip.append(sparkline(i));
     if (DS.Q[i]) tip.append(flowSpark(i));
     const touchLike = ev.pointerType === "touch" || matchMedia("(hover: none)").matches;
-    tip.append(h("div", "meta", touchLike ? "Tap again to open the USGS page" : "Click to open the USGS page"));
+    tip.append(h("div", "meta", touchLike ? "Tap again for a larger chart" : "Click for a larger chart"));
     placeTip(tip, card, ev);
     const ring = $("hl");
     ring.setAttribute("cx", s.x); ring.setAttribute("cy", s.y); ring.setAttribute("r", 9 * Math.pow(zoomV.k, -0.6) * dotScale());
@@ -1075,6 +1108,211 @@
     if (left + tw > box.width - 8) left = ev.clientX - box.left - tw - 14;
     if (top + th > box.height - 8) top = ev.clientY - box.top - th - 14;
     tip.style.left = Math.max(8, Math.min(left, box.width - tw - 8)) + "px"; tip.style.top = Math.max(8, top) + "px";
+  }
+
+
+  // ---------------------------------------------------------------- stream panel
+  // Clicking a dot opens a larger chart of that stream under the map: salinity against its
+  // summer level, and streamflow against its typical flow, over the whole data window.
+  function panelIndex() { return panelId && DS ? DS.sites.findIndex((x) => x.id === panelId) : -1; }
+
+  function openSitePanel(i, opts = {}) {
+    panelId = DS.sites[i].id;
+    highlighted = i;
+    paintMap();
+    renderSitePanel();
+    syncUrl();
+    if (opts.scroll) $("sitePanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function closeSitePanel(sync = true) {
+    panelId = null;
+    highlighted = -1;
+    $("sitePanel").hidden = true;
+    $("spTip").style.display = "none";
+    paintMap();
+    if (sync) syncUrl();
+  }
+
+  function renderSitePanel() {
+    const i = panelIndex(); if (i < 0) return;
+    const s = DS.sites[i], panel = $("sitePanel");
+    panel.hidden = false;
+    $("spName").textContent = s.name + (s.state && !s.name.endsWith(", " + s.state) ? ", " + s.state : "");
+    const hasQ = DS.Q[i] && DS.qmed[i] > 0;
+    $("spSub").textContent = s.id.replace(/^USGS-/, "USGS ") + " · daily mean specific conductance" + (hasQ ? " and streamflow" : "") + ", " +
+      fmtDate(DS.dates[0], DS.dates[0].slice(0, 4) === DS.dates[DS.n - 1].slice(0, 4) ? SHORT : undefined) + " – " + fmtDate(DS.dates[DS.n - 1]) + (DS.archive ? " (" + DS.label + ")" : "") +
+      ". Summer level " + fmtInt(s.base) + " µS/cm" + (hasQ ? ", typical flow " + fmtFlow(DS.qmed[i]) + " cfs" : ", no streamflow gauge") + ".";
+    $("spUsgs").href = siteUrl(s.id);
+    $("spChart").setAttribute("aria-label", "Daily salinity" + (hasQ ? " and streamflow" : "") + " at " + s.name);
+    renderSiteStats();
+    drawSiteChart();
+    if ($("spDetails").open) buildSiteTable();
+  }
+
+  function renderSiteStats() {
+    const i = panelIndex(); if (i < 0 || !M || M.ds !== DS) return;
+    const s = DS.sites[i], box = $("spStats"), r = DS.R[i][day], v = s.sc[day];
+    const item = (label, value, sub) => { const d = h("div"); d.append(h("b", "", value), document.createTextNode(label + (sub ? " · " + sub : ""))); return d; };
+    box.replaceChildren(
+      item(fmtDate(DS.dates[day], SHORT), r >= 0 ? fmtRatio(r) : "—", v == null ? "no reading" : fmtInt(v) + " µS/cm"),
+      item("season peak", fmtRatio(M.peak[i]), M.peakDay[i] >= 0 ? fmtDate(DS.dates[M.peakDay[i]], SHORT) : ""),
+      item("days at 3×+", fmtInt(M.n3[i]), rangeShort()),
+      item(M.recs[i].length ? "days back under 1.5×" : "back under 1.5×", recText(i), M.recs[i].length > 1 ? "median" : ""),
+    );
+  }
+
+  function logTicks(lo, hi) {
+    if (Math.log10(hi / lo) >= 2.2) { // wide ranges: one tick per power of ten
+      const out = [];
+      for (let e = Math.ceil(Math.log10(lo)); e <= Math.floor(Math.log10(hi)); e++) out.push(Math.pow(10, e));
+      if (out.length >= 2) return out;
+    }
+    for (const mults of [[1, 2, 5], [1, 1.5, 2, 3, 5, 7]]) {
+      const out = [];
+      for (let e = Math.floor(Math.log10(lo)); e <= Math.ceil(Math.log10(hi)); e++)
+        for (const m of mults) { const v = m * Math.pow(10, e); if (v >= lo && v <= hi) out.push(v); }
+      if (out.length >= 3 || mults.length > 3) return out;
+    }
+    return [];
+  }
+
+  function drawSiteChart() {
+    const i = panelIndex(), svg = $("spChart"), wrap = $("spWrap");
+    if (i < 0 || $("sitePanel").hidden) return;
+    const s = DS.sites[i], n = DS.n, narrow = wrap.clientWidth < 560;
+    const W = Math.max(300, wrap.clientWidth), q = DS.Q[i], qm = DS.qmed[i], hasQ = !!(q && qm > 0);
+    const m = { l: narrow ? 46 : 58, r: narrow ? 46 : 56, t: 22, b: 28 }, H1 = narrow ? 170 : 230, gap = 34, H2 = hasQ ? (narrow ? 80 : 110) : 0;
+    const H = m.t + H1 + (hasQ ? gap + H2 : 0) + m.b, iw = W - m.l - m.r;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("width", W); svg.setAttribute("height", H);
+    svg.replaceChildren();
+    const x = (d) => m.l + (n > 1 ? d / (n - 1) : 0.5) * iw;
+    const bottom = H - m.b, top2 = m.t + H1 + gap;
+    const txt = (attrs, t) => { const e = el("text", { "font-size": 11, fill: colors.muted, ...attrs }, svg); e.textContent = t; return e; };
+
+    // salt season band and month grid
+    if (DS.s0 > 0) {
+      el("rect", { x: x(DS.s0), y: m.t, width: m.l + iw - x(DS.s0), height: bottom - m.t, fill: colors.wash }, svg);
+      const narrowBand = m.l + iw - x(DS.s0) < 90;
+      txt({ x: narrowBand ? m.l + iw : x(DS.s0) + 6, y: m.t - 8, "text-anchor": narrowBand ? "end" : "start" }, "Salt season");
+    }
+    let lastLabel = -99;
+    DS.dates.forEach((dt, d) => {
+      if (dt.slice(8) !== "01") return;
+      el("line", { x1: x(d), x2: x(d), y1: m.t, y2: bottom, stroke: colors.grid, "stroke-width": 1 }, svg);
+      if (x(d) - lastLabel < (narrow ? 34 : 40)) return;
+      const mo = new Date(dt + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+      txt({ x: x(d), y: bottom + 16, "text-anchor": "middle" }, mo + (dt.slice(5, 7) === "01" ? " " + dt.slice(0, 4) : ""));
+      lastLabel = x(d);
+    });
+
+    // panel 1: specific conductance, log scale, with the summer level and 3x / 10x lines
+    const vals = s.sc.filter((v) => v > 0);
+    const lo = Math.min(...vals, s.base) * 0.85, hi = Math.max(...vals, s.base * 1.6) * 1.12;
+    const y1 = (v) => m.t + H1 - (Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) * H1;
+    for (const v of logTicks(lo, hi)) {
+      el("line", { x1: m.l, x2: m.l + iw, y1: y1(v), y2: y1(v), stroke: colors.grid, "stroke-width": 1, "stroke-dasharray": "2 3" }, svg);
+      txt({ x: m.l - 6, y: y1(v) + 4, "text-anchor": "end" }, fmtInt(v));
+    }
+    txt({ x: m.l - 6, y: m.t - 8, "text-anchor": "end" }, "µS/cm");
+    for (const [mult, lab] of [[1, "summer"], [3, "3×"], [10, "10×"]]) {
+      const v = s.base * mult; if (v < lo || v > hi) continue;
+      el("line", { x1: m.l, x2: m.l + iw, y1: y1(v), y2: y1(v), stroke: mult === 1 ? colors.ink2 : colors.axis, "stroke-width": mult === 1 ? 1.2 : 1, "stroke-dasharray": mult === 1 ? "" : "5 4" }, svg);
+      txt({ x: m.l + iw + 4, y: y1(v) + 4, fill: mult === 1 ? colors.ink2 : colors.muted }, lab);
+    }
+    let dPath = "", pen = false;
+    s.sc.forEach((v, d) => { if (!(v > 0)) { pen = false; return; } dPath += (pen ? "L" : "M") + x(d).toFixed(1) + "," + y1(v).toFixed(1); pen = true; });
+    el("path", { d: dPath, fill: "none", stroke: colors.c2, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    s.sc.forEach((v, d) => { // isolated readings would be invisible as a line
+      if (v > 0 && !(s.sc[d - 1] > 0) && !(s.sc[d + 1] > 0)) el("circle", { cx: x(d), cy: y1(v), r: 2, fill: colors.c2 }, svg);
+    });
+
+    // panel 2: streamflow, log scale, with the typical flow
+    let y2 = null;
+    if (hasQ) {
+      const qv = Array.from(q).filter((v) => v > 0);
+      const lo2 = Math.min(...qv, qm) * 0.8, hi2 = Math.max(...qv, qm) * 1.15;
+      y2 = (v) => top2 + H2 - (Math.log(v) - Math.log(lo2)) / (Math.log(hi2) - Math.log(lo2)) * H2;
+      logTicks(lo2, hi2).forEach((v) => {
+        el("line", { x1: m.l, x2: m.l + iw, y1: y2(v), y2: y2(v), stroke: colors.grid, "stroke-width": 1, "stroke-dasharray": "2 3" }, svg);
+        txt({ x: m.l - 6, y: y2(v) + 4, "text-anchor": "end" }, fmtFlow(v));
+      });
+      txt({ x: m.l - 6, y: top2 - 8, "text-anchor": "end" }, "cfs");
+      txt({ x: m.l, y: top2 - 8, fill: colors.ink2 }, "Streamflow");
+      el("line", { x1: m.l, x2: m.l + iw, y1: y2(qm), y2: y2(qm), stroke: colors.ink2, "stroke-width": 1.2 }, svg);
+      txt({ x: m.l + iw + 4, y: y2(qm) + 4, fill: colors.ink2 }, "typical");
+      let qp = "", pq = false;
+      Array.from(q).forEach((v, d) => { if (!(v > 0)) { pq = false; return; } qp += (pq ? "L" : "M") + x(d).toFixed(1) + "," + y2(v).toFixed(1); pq = true; });
+      el("path", { d: qp, fill: "none", stroke: colors.ink2, "stroke-width": 1.5, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    }
+    txt({ x: m.l, y: m.t - 8, fill: colors.ink2 }, "Salinity (specific conductance)");
+    el("line", { x1: m.l, x2: m.l + iw, y1: bottom, y2: bottom, stroke: colors.axis, "stroke-width": 1 }, svg);
+
+    // the day shown on the map
+    const mark = (d, cls) => {
+      const g = el("g", { class: cls }, svg);
+      el("line", { x1: x(d), x2: x(d), y1: m.t, y2: bottom, stroke: colors.ink, "stroke-width": 1, "stroke-dasharray": cls === "hover" ? "3 3" : "" }, g);
+      if (s.sc[d] > 0) el("circle", { cx: x(d), cy: y1(s.sc[d]), r: 4.5, fill: colors.c2, stroke: colors.surface, "stroke-width": 2 }, g);
+      if (hasQ && q[d] > 0) el("circle", { cx: x(d), cy: y2(q[d]), r: 4, fill: colors.ink2, stroke: colors.surface, "stroke-width": 2 }, g);
+      return g;
+    };
+    mark(day, "day");
+
+    // hover: crosshair and readout; click moves the map to that day
+    const hit = el("rect", { x: m.l, y: m.t, width: iw, height: bottom - m.t, fill: "transparent", style: "cursor: crosshair" }, svg);
+    let hov = null;
+    const dayAt = (ev) => { const r = svg.getBoundingClientRect(); return Math.max(0, Math.min(n - 1, Math.round(((ev.clientX - r.left) * (W / r.width) - m.l) / iw * (n - 1)))); };
+    hit.addEventListener("pointermove", (ev) => {
+      const d = dayAt(ev);
+      if (hov) hov.remove();
+      hov = mark(d, "hover"); svg.insertBefore(hov, hit);
+      const tip = $("spTip"); tip.replaceChildren();
+      const v = s.sc[d], r = DS.R[i][d];
+      tip.append(h("div", "big", v > 0 ? fmtRatio(r) + " summer level" : "No salinity reading"));
+      tip.append(h("div", "name", fmtDate(DS.dates[d]) + (v > 0 ? " · " + fmtInt(v) + " µS/cm" : "")));
+      if (hasQ) {
+        const kv = h("div", "kv");
+        if (q[d] > 0) kv.append(document.createTextNode("Flow "), h("b", "", fmtFlow(q[d]) + " cfs"), document.createTextNode(" · " + fmtRatio(q[d] / qm) + " typical"));
+        else kv.textContent = "No flow reading";
+        tip.append(kv);
+      }
+      tip.append(h("div", "meta", d === day ? "The day shown on the map" : "Click to show this day on the map"));
+      placeTip(tip, $("mapCard"), ev);
+    });
+    hit.addEventListener("pointerleave", () => { if (hov) { hov.remove(); hov = null; } $("spTip").style.display = "none"; });
+    hit.addEventListener("click", (ev) => { stop(); $("spTip").style.display = "none"; setDay(dayAt(ev)); });
+  }
+
+  function buildSiteTable() {
+    const i = panelIndex(), t = $("spTable"); t.replaceChildren(); if (i < 0) return;
+    const s = DS.sites[i], q = DS.Q[i], qm = DS.qmed[i], hasQ = !!(q && qm > 0);
+    const hr = t.createTHead().insertRow();
+    ["Date", "µS/cm", "× summer", ...(hasQ ? ["Flow (cfs)", "× typical"] : [])].forEach((c, k) => { const th = h("th", k ? "num" : "", c); hr.append(th); });
+    const body = t.createTBody();
+    for (let d = DS.n - 1; d >= 0; d--) {
+      const tr = body.insertRow(), v = s.sc[d];
+      const cells = [fmtDate(DS.dates[d]), v > 0 ? fmtInt(v) : "—", v > 0 ? fmtRatio(DS.R[i][d]) : "—"];
+      if (hasQ) cells.push(q[d] > 0 ? fmtFlow(q[d]) : "—", q[d] > 0 ? fmtRatio(q[d] / qm) : "—");
+      cells.forEach((c, k) => { const td = tr.insertCell(); td.textContent = c; if (k) td.className = "num"; });
+    }
+  }
+
+  function downloadSiteCsv() {
+    const i = panelIndex(); if (i < 0) return;
+    const s = DS.sites[i], q = DS.Q[i], qm = DS.qmed[i], hasQ = !!(q && qm > 0);
+    const esc = (v) => (/[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v);
+    const lines = [["date", "specific_conductance_uS_cm", "ratio_to_summer_level", ...(hasQ ? ["discharge_cfs", "ratio_to_typical_flow"] : [])].join(",")];
+    DS.dates.forEach((dt, d) => {
+      const v = s.sc[d], row = [dt, v > 0 ? v : "", v > 0 ? Math.round(DS.R[i][d] * 100) / 100 : ""];
+      if (hasQ) row.push(q[d] > 0 ? q[d] : "", q[d] > 0 ? Math.round(q[d] / qm * 100) / 100 : "");
+      lines.push(row.join(","));
+    });
+    lines.push("", esc(s.name + " (" + s.id + "). Summer level " + s.base + " uS/cm (May-Oct median)" + (hasQ ? "; typical flow " + Math.round(qm * 100) / 100 + " cfs (median of this window)" : "")));
+    lines.push(esc("Source: USGS Water Data API, daily mean specific conductance (00095) and discharge (00060), provisional. Shantanu Bhide, shantanubhide.com/salt-tracker"));
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
+    a.download = "salt-" + s.id.replace(/^USGS-/, "usgs-") + (DS.archive ? "-" + DS.id : "") + ".csv";
+    document.body.append(a); a.click(); a.remove();
   }
 
   // ---------------------------------------------------------------- chart
@@ -1461,7 +1699,7 @@
   function focusSite(i) {
     highlighted = i;
     zoomToSite(i);
-    paintMap();
+    openSitePanel(i);
     $("mapCard").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -1502,6 +1740,7 @@
     if (!playing) { renderEvents(); renderRankings(); }
     else if (DS.eventByDay[d] >= 0 || d % 7 === 0) renderEvents();
     if (tipSite >= 0) hideTip();
+    if (panelId) { renderSiteStats(); drawSiteChart(); }
   }
 
   function setView(v, repaint = true) {
@@ -1632,6 +1871,10 @@
     $("state").addEventListener("change", () => { stop(); setScope($("state").value); syncUrl(); });
     $("day").addEventListener("input", () => { stop(); setDay(+$("day").value); });
     $("play").addEventListener("click", togglePlay);
+    $("spClose").addEventListener("click", () => closeSitePanel());
+    $("spCsv").addEventListener("click", downloadSiteCsv);
+    $("spDetails").addEventListener("toggle", () => { if ($("spDetails").open) buildSiteTable(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && panelId) closeSitePanel(); });
     $("save").addEventListener("click", saveImage);
     $("download").addEventListener("click", downloadCsv);
     $("showAll").addEventListener("click", () => { showAllRows = !showAllRows; renderRankings(); });
@@ -1641,8 +1884,8 @@
       document.querySelectorAll("#rankSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
       renderRankings();
     }));
-    window.addEventListener("resize", debounce(() => { if (DS) { drawChart(); paintMap(); } }, 150));
-    if (matchMedia("(hover: none)").matches) $("mapHint").textContent = "Tap a dot for details, tap again for the USGS page. Pinch to zoom, or use + and −; drag sideways to pan.";
+    window.addEventListener("resize", debounce(() => { if (DS) { drawChart(); paintMap(); if (panelId) drawSiteChart(); } }, 150));
+    if (matchMedia("(hover: none)").matches) $("mapHint").textContent = "Tap a dot for details, tap again for a larger chart. Pinch to zoom, or use + and −; drag sideways to pan.";
     matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => refreshColors());
     new MutationObserver(() => refreshColors()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   }
@@ -1652,6 +1895,7 @@
     if (seasonId !== "live") p.set("season", seasonId);
     if (scopeAb) p.set("state", scopeAb);
     if (view !== "today") p.set("view", view);
+    if (panelId) p.set("site", panelId);
     const q = p.toString();
     history.replaceState(null, "", location.pathname + (q ? "?" + q : "") + location.hash);
   }
