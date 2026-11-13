@@ -396,7 +396,7 @@
       <li><b>Salt storms.</b> A sensor “spikes” when it reaches 3× after two days below 3×. A storm is a day when at least 8 sensors (and at least 3% of those reporting) spike in one region, merged with nearby days and regions. Regions: Northeast (New England and NY), Mid-Atlantic (NJ, PA, DE, MD, DC, VA, WV), Southeast, Midwest, Plains and South Central, and West.</li>
       <li><b>Flow.</b> Daily mean discharge (parameter 00060) at the same gages, where it is measured. “Typical flow” is the median daily flow over the period shown. Many sensors have no flow gage, and northern gages often skip ice-affected days.</li>
       <li><b>Coastal sensors.</b> Sensors the tide reaches are left out, because their salty readings are seawater, not road salt: those where USGS also records salinity, tidally filtered streamflow or water levels against sea level, and those with a gage below 15 ft elevation within 25 km of the ocean or Gulf coast. <span id="excludedNote"></span></li>
-      <li id="methodWatershed" hidden><b>Watersheds.</b> Each station's upstream watershed and its attributes (land cover, imperviousness, road and population density, baseflow index, area, climate and soils) come from the <a href="https://api.water.usgs.gov/nldi/" rel="noopener">USGS Network-Linked Data Index</a>, which serves the NHDPlus Version 2.1 watershed attributes of <a href="https://www.sciencebase.gov/catalog/item/5669a79ee4b08895842a1d47" rel="noopener">Wieczorek and others</a>. Land-use classes follow <a href="https://doi.org/10.1038/s43247-026-03788-2" rel="noopener">Chen and Husic (2026)</a>: urban (developed land), agricultural (pasture, hay and crops) or forested when that cover is more than half of the watershed, otherwise mixed. Watershed facts appear in the hover details, the stream chart and the streams CSV. <span id="attrNote"></span></li>
+      <li id="methodWatershed" hidden><b>Watersheds.</b> Each station is matched to its stream segment in NHDPlus Version 2.1 by the <a href="https://api.water.usgs.gov/nldi/" rel="noopener">USGS Network-Linked Data Index</a>, and the whole watershed upstream of that segment is described with EPA's <a href="https://www.epa.gov/national-aquatic-resource-surveys/streamcat-dataset" rel="noopener">StreamCat</a> dataset (Hill and others, 2016): NLCD 2019 land cover and imperviousness, 2010 census population density, road density, baseflow index, PRISM 1981–2010 climate normals, soils and dams. Land-use classes follow <a href="https://doi.org/10.1038/s43247-026-03788-2" rel="noopener">Chen and Husic (2026)</a>: urban (developed land, NLCD 21–24), agricultural (pasture, hay and crops) or forested when that cover is more than half of the watershed, otherwise mixed. Watershed facts appear in the hover details, the stream chart and the streams CSV. <span id="attrNote"></span></li>
       <li><b>Caveats.</b> Data are provisional and can change. Not every spike is road salt: drought, wastewater, mining and sensor problems can also raise conductance. Tidal and estuary sensors are left out. Conductance is not the same as chloride concentration.</li>
       <li><b>Data.</b> <a href="https://api.waterdata.usgs.gov/" rel="noopener">USGS Water Data API</a>, daily mean specific conductance (00095) and discharge (00060), refreshed every morning. Past winters are archived each May. <span id="updated"></span></li>
     </ul>
@@ -1801,11 +1801,12 @@
     const cols = rankTab === "states" ? [{ key: "ab", label: "State code", get: (r) => r.ab, text: true }, ...shown]
       : rankTab === "landuse" ? shown : [{ key: "id", label: "USGS site", get: (i) => DS.sites[i].id, text: true }, ...shown];
     if ((rankTab === "today" || rankTab === "streams") && DS.hasAttr) {
-      const extra = [["Watershed land use", "landuse", true], ["Developed (%)", "urban_pct"], ["Forest (%)", "forest_pct"], ["Agriculture (%)", "ag_pct"],
-        ["Water (%)", "water_pct"], ["Wetland (%)", "wetland_pct"], ["NLCD year", "nlcd_year"], ["Impervious (%)", "impervious_pct"],
-        ["Road density", "road_density"], ["Population density", "pop_density"], ["Baseflow index (%)", "bfi_pct"], ["Watershed area (km2)", "area_km2"],
-        ["Mean slope", "slope_pct"], ["Mean elevation", "elev_m"], ["Mean annual precipitation", "precip_mm"], ["Mean annual temperature", "temp_c"],
-        ["Clay", "clay_pct"], ["Sand", "sand_pct"], ["Dams upstream", "dams"], ["NHDPlus COMID", "comid", true]];
+      const extra = [["Watershed land use", "landuse", true], ["Developed, NLCD 2019 (%)", "urban_pct"], ["Forest (%)", "forest_pct"], ["Agriculture (%)", "ag_pct"],
+        ["Open water (%)", "water_pct"], ["Wetland (%)", "wetland_pct"], ["Impervious, NLCD 2019 (%)", "impervious_pct"],
+        ["Road density (km per km2)", "road_density"], ["Population density, 2010 (people per km2)", "pop_density"], ["Baseflow index (%)", "bfi_pct"],
+        ["Watershed area (km2)", "area_km2"], ["Mean elevation (m)", "elev_m"], ["Precipitation, 1981-2010 normal (mm per year)", "precip_mm"],
+        ["Air temperature, 1981-2010 normal (deg C)", "temp_c"], ["Clay (%)", "clay_pct"], ["Sand (%)", "sand_pct"],
+        ["Dam density (dams per 100 km2)", "dam_density"], ["NHDPlus COMID", "comid", true]];
       for (const [label, k, text] of extra) {
         const u = attrDoc.variables && attrDoc.variables[k] && attrDoc.variables[k].units;
         const lab = u && !/\(/.test(label) ? label + " (" + u + ")" : label;
@@ -1826,7 +1827,7 @@
     const [a, d] = rankTab === "today" ? [day, day] : seasonRange();
     lines.push("", esc("Period: " + DS.dates[a] + " to " + DS.dates[d] + (DS.archive ? " (" + DS.label + ")" : "")));
     lines.push(esc("Source: USGS Water Data API, daily mean specific conductance (00095) and discharge (00060), provisional. Ratios compare with each stream's May-Oct median. Analysis by Shantanu Bhide, shantanubhide.com/salt-tracker"));
-    if (DS.hasAttr) lines.push(esc("Watershed attributes: USGS NLDI, NHDPlus v2.1 total upstream watershed attributes (Wieczorek and others). Land-use classes after Chen and Husic (2026), Communications Earth & Environment."));
+    if (DS.hasAttr) lines.push(esc("Watershed attributes: EPA StreamCat (Hill and others, 2016) for each gage's NHDPlus v2.1 stream segment, matched by the USGS Network-Linked Data Index. Land-use classes after Chen and Husic (2026), Communications Earth & Environment."));
     if (luFilter && rankTab !== "landuse") lines.push(esc("Filtered to " + LU_ADJ[luFilter] + " watersheds."));
     if (DS.raw.demo) lines.push(esc("SYNTHETIC TEST DATA - not real measurements"));
     const blob = new Blob([lines.join("\n")], { type: "text/csv" });

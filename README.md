@@ -50,7 +50,7 @@ There are three parts, and you never have to run anything on your own computer.
 |---|---|---|
 | Data script | `scripts/fetch_salt.py` | Downloads daily mean specific conductance (USGS parameter 00095) for every stream sensor in the lower 48 states, works out each stream's May–October median ("normal"), downloads daily streamflow (00060) at the same sensors, and saves the last 185 days to `data/salt.json`. It also archives each finished winter (see below). |
 | Data files | `data/salt.json`, `data/season-YYYY-YY.json`, `data/seasons.json`, `data/excluded-sites.json` | The live data, one archive per past winter, the list of archives for the season picker, and the coastal sensors left out (with reasons). |
-| Watershed script | `scripts/fetch_attributes.py` | Looks up each station's upstream watershed in the USGS Network-Linked Data Index (NLDI) and saves its land cover, land-use class and other basin variables to `data/site-attributes.json`. Runs after the salt update; only new stations are looked up, so it takes seconds on a normal day. |
+| Watershed script | `scripts/fetch_attributes.py` | Matches each station to its NHDPlus stream segment with the USGS Network-Linked Data Index (NLDI), reads that segment's whole-watershed metrics from EPA StreamCat, and saves land cover, the land-use class and other basin variables to `data/site-attributes.json`. Runs after the salt update; only new stations are looked up, so it takes seconds on a normal day. |
 | Coastal filter inputs | `sources/coastline-us.json`, `sources/coastal-sites.csv` | The U.S. ocean coastline (Natural Earth, public domain) and a short manual keep/drop list. |
 | Daily robot | `.github/workflows/update-data.yml` | A GitHub Actions workflow. GitHub runs the data script for free every morning at 13:37 UTC and saves the new files in `data/` back into this repository. |
 | Backfill robot | `.github/workflows/backfill-winters.yml` | Run by hand. Builds every missing winter archive back to the year you choose, one winter at a time, and saves each one as it finishes. |
@@ -184,16 +184,18 @@ a demo banner until it does.
   regions are merged.
 - **Flow:** daily mean discharge at the same gage. "Typical" is the median daily flow over
   the period shown. Many sensors have no flow gage, and ice can interrupt winter records.
-- **Watersheds:** each USGS site is matched to its NHDPlus Version 2.1 stream segment
-  by the USGS NLDI, which serves the total-upstream-watershed attributes of Wieczorek and
-  others (*Select Attributes for NHDPlus Version 2.1 Reach Catchments and Modified
-  Network Routed Upstream Watersheds*). Land cover is the newest NLCD year in that set:
-  developed (NLCD 21–24), forest (41–43) and agriculture (81–82, pasture/hay and crops).
-  A watershed is urban, agricultural or forested when that cover is more than half of it,
-  otherwise mixed, after [Chen and Husic (2026)](https://doi.org/10.1038/s43247-026-03788-2).
-  Stations the NLDI doesn't index (often small or recently added gages) show no watershed
-  facts; failed lookups are retried after 14 days. The attributes describe the watershed
-  as mapped in NHDPlus, which can differ from the gage's exact drainage area.
+- **Watersheds:** each USGS site is matched to its NHDPlus Version 2.1 stream segment by
+  the USGS NLDI. The whole watershed upstream of that segment is described with EPA's
+  [StreamCat](https://www.epa.gov/national-aquatic-resource-surveys/streamcat-dataset)
+  dataset (Hill and others, 2016): NLCD 2019 land cover and imperviousness, 2010 census
+  population density, road density, baseflow index, PRISM 1981–2010 climate normals, soils
+  and dam density. Developed land is NLCD 21–24, forest 41–43 and agriculture 81–82
+  (pasture/hay and crops). A watershed is urban, agricultural or forested when that cover
+  is more than half of it, otherwise mixed, after
+  [Chen and Husic (2026)](https://doi.org/10.1038/s43247-026-03788-2). Stations the NLDI
+  doesn't match (often small or recently added gages) show no watershed facts; they are
+  retried after 14 days, and failed lookups the next day. (The NLDI used to serve these
+  attributes itself; USGS removed that part of the service in 2026.)
 - **Caveats:** data are provisional. Drought, wastewater, mining and sensor problems can
   also raise conductance. Conductance is not chloride concentration.
 
@@ -210,8 +212,8 @@ a demo banner until it does.
   winter's archive, which can take 30–60 minutes. Daily runs take a few minutes.
 - **No watershed picker:** `data/site-attributes.json` doesn't exist yet or holds no
   land-use classes. Open the latest run's **Look up watershed facts** step: it lists how
-  many stations were found and, for the first one, which attribute names the service
-  returned. This step never stops the salt update.
+  how many stations were matched and, for the first one, which StreamCat values came
+  back. This step never stops the salt update.
 - **The workflow stopped running:** GitHub pauses scheduled workflows in repos with no
   activity for 60 days. The daily data commits normally count as activity; if it pauses,
   re-enable it on the Actions tab.
@@ -219,5 +221,6 @@ a demo banner until it does.
 Data: [USGS Water Data API](https://api.waterdata.usgs.gov/) via the USGS
 [`dataretrieval`](https://github.com/DOI-USGS/dataretrieval-python) package. State
 outlines from U.S. Census data via the folium project's `us-states.json`; District of
-Columbia outline from Natural Earth. Watershed attributes from the
-[USGS NLDI](https://api.water.usgs.gov/nldi/) (NHDPlus Version 2.1, Wieczorek and others).
+Columbia outline from Natural Earth. Stream segments from the
+[USGS NLDI](https://api.water.usgs.gov/nldi/) (NHDPlus Version 2.1); watershed metrics from
+EPA [StreamCat](https://www.epa.gov/national-aquatic-resource-surveys/streamcat-dataset).
