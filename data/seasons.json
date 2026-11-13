@@ -6,6 +6,13 @@
    "file": "data/season-2025-26.json",
    "sites": 653,
    "demo": false
+  },
+  {
+   "id": "2024-25",
+   "label": "Winter 2024\u201325",
+   "file": "data/season-2024-25.json",
+   "sites": 678,
+   "demo": false
   }
  ]
 }
