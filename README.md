@@ -9,9 +9,14 @@ Live page (once set up): **https://shantanubhide.com/salt-tracker/**
 
 - **Season picker:** this season (live) or a past winter, such as Winter 2025–26, to
   replay day by day with **Play**.
-- **Area picker and zoom:** pick a state to zoom in. The headline, tiles, chart, storms
-  and rankings switch to that state, with its national rank. Drag to pan; zoom with + and
-  −, a pinch, or Ctrl/⌘ + scroll.
+- **Area picker and zoom:** pick a state (or Washington, DC) to zoom in. The headline,
+  tiles, chart, storms and rankings switch to that state, with its national rank. Drag to
+  pan; zoom with + and −, a pinch, or Ctrl/⌘ + scroll.
+- **Watershed land use:** each station's upstream watershed is classed as urban,
+  agricultural, forested or mixed (Chen and Husic, 2026). Pick a class to show only those
+  streams; everything on the page follows it. The *Season: land use* tab compares the
+  four classes side by side. Hover details and the stream chart show the watershed's land
+  cover, imperviousness, road and population density, baseflow index and area.
 - **Four map views:** *Today* (each stream vs. its summer level), *Season peak*, *Days at
   3×+*, and *Between storms* (the low end of a stream's winter readings: salt that stays
   after the pulses pass).
@@ -23,7 +28,9 @@ Live page (once set up): **https://shantanubhide.com/salt-tracker/**
   dilution, or salty groundwater).
 - **Rankings:** saltiest streams today, a season scorecard for every stream (peak, peak
   date, days at 1.5×/3×/10×, days back under 1.5× after a pulse, between-storm level, flow
-  at peak) and for every state. Sortable, clickable, downloadable as CSV.
+  at peak, watershed land use, imperviousness, baseflow index), for every state and for
+  each land-use class. Sortable, clickable, downloadable as CSV. The stream CSVs also
+  carry every watershed variable, ready for analysis.
 - **Stream chart:** hover a dot for a quick summary; click it (tap twice on a phone) to
   open a larger chart under the map: daily salinity against the stream's summer level
   with 3× and 10× lines, and streamflow against its typical flow, over the whole data
@@ -32,7 +39,8 @@ Live page (once set up): **https://shantanubhide.com/salt-tracker/**
   USGS page. Clicking a stream in the rankings opens it too; Esc or Close shuts it.
 - **Save image:** a 2400 × 2400 PNG of the current season, view, state and zoom.
 - Links like `?season=2025-26&state=PA&view=peak` open the page in that state;
-  add `&site=USGS-01646500` to open one stream's chart.
+  add `&landuse=urban` for one land-use class, or `&site=USGS-01646500` to open one
+  stream's chart.
 
 ## How it works
 
@@ -42,8 +50,10 @@ There are three parts, and you never have to run anything on your own computer.
 |---|---|---|
 | Data script | `scripts/fetch_salt.py` | Downloads daily mean specific conductance (USGS parameter 00095) for every stream sensor in the lower 48 states, works out each stream's May–October median ("normal"), downloads daily streamflow (00060) at the same sensors, and saves the last 185 days to `data/salt.json`. It also archives each finished winter (see below). |
 | Data files | `data/salt.json`, `data/season-YYYY-YY.json`, `data/seasons.json`, `data/excluded-sites.json` | The live data, one archive per past winter, the list of archives for the season picker, and the coastal sensors left out (with reasons). |
+| Watershed script | `scripts/fetch_attributes.py` | Looks up each station's upstream watershed in the USGS Network-Linked Data Index (NLDI) and saves its land cover, land-use class and other basin variables to `data/site-attributes.json`. Runs after the salt update; only new stations are looked up, so it takes seconds on a normal day. |
 | Coastal filter inputs | `sources/coastline-us.json`, `sources/coastal-sites.csv` | The U.S. ocean coastline (Natural Earth, public domain) and a short manual keep/drop list. |
 | Daily robot | `.github/workflows/update-data.yml` | A GitHub Actions workflow. GitHub runs the data script for free every morning at 13:37 UTC and saves the new files in `data/` back into this repository. |
+| Backfill robot | `.github/workflows/backfill-winters.yml` | Run by hand. Builds every missing winter archive back to the year you choose, one winter at a time, and saves each one as it finishes. |
 | Web page | `index.html` | Everything visitors see. GitHub Pages hosts it. |
 
 `assets/states.json` holds the state outlines (built once by `scripts/build_states.py`).
@@ -62,12 +72,18 @@ There are three parts, and you never have to run anything on your own computer.
   the first run after this upgrade, for winter 2025–26). If the archive download fails,
   the live data is still saved and the next morning's run tries again.
 
-### Adding an older winter (optional)
+### Adding older winters (optional)
 
-**Actions → Update salt data → Run workflow**, type the winter's starting year in the
-season box (for example `2024` for winter 2024–25), and run it. It adds
-`data/season-2024-25.json` and the page's season picker lists it. Older winters have
-fewer sensors.
+**All of them at once:** **Actions → Backfill past winters → Run workflow**, keep `2016`
+(or type the first winter you want) and run it. It works backward from the most recent
+winter, skips winters that already have an archive, and saves each winter as soon as it
+finishes, so a run that stops partway keeps what it built; run it again to pick up the
+rest. A winter can take half an hour or more, so the whole set may take a few hours
+(GitHub stops a run after 6 hours). Older winters have fewer sensors.
+
+**Just one:** **Actions → Update salt data → Run workflow**, type the winter's starting
+year in the season box (for example `2024` for winter 2024–25), and run it. It adds
+`data/season-2024-25.json` and the page's season picker lists it.
 
 ## One-time setup (about 15 minutes)
 
@@ -161,12 +177,23 @@ a demo banner until it does.
 - **Between storms:** 25th percentile of a stream's daily ratios over the season (14+
   readings needed).
 - **Days back under 1.5×:** from the peak of a 3×+ pulse to the first reading below 1.5×;
-  the median across a stream's pulses.
+  the median across a stream's pulses. If another storm pushes the stream back to 3× before
+  it drops below 1.5×, the count restarts from that newer peak.
 - **Salt storm:** a sensor spikes when it reaches 3× after two days below 3×. A storm day
   needs at least 8 spikes (and 3% of reporting sensors) in one region; nearby days and
   regions are merged.
 - **Flow:** daily mean discharge at the same gage. "Typical" is the median daily flow over
   the period shown. Many sensors have no flow gage, and ice can interrupt winter records.
+- **Watersheds:** each USGS site is matched to its NHDPlus Version 2.1 stream segment
+  by the USGS NLDI, which serves the total-upstream-watershed attributes of Wieczorek and
+  others (*Select Attributes for NHDPlus Version 2.1 Reach Catchments and Modified
+  Network Routed Upstream Watersheds*). Land cover is the newest NLCD year in that set:
+  developed (NLCD 21–24), forest (41–43) and agriculture (81–82, pasture/hay and crops).
+  A watershed is urban, agricultural or forested when that cover is more than half of it,
+  otherwise mixed, after [Chen and Husic (2026)](https://doi.org/10.1038/s43247-026-03788-2).
+  Stations the NLDI doesn't index (often small or recently added gages) show no watershed
+  facts; failed lookups are retried after 14 days. The attributes describe the watershed
+  as mapped in NHDPlus, which can differ from the gage's exact drainage area.
 - **Caveats:** data are provisional. Drought, wastewater, mining and sensor problems can
   also raise conductance. Conductance is not chloride concentration.
 
@@ -181,10 +208,16 @@ a demo banner until it does.
   run says why ("Could not build the ... archive this time"); the next run retries.
 - **Run takes long:** the first run after an upgrade does a full rebuild plus last
   winter's archive, which can take 30–60 minutes. Daily runs take a few minutes.
+- **No watershed picker:** `data/site-attributes.json` doesn't exist yet or holds no
+  land-use classes. Open the latest run's **Look up watershed facts** step: it lists how
+  many stations were found and, for the first one, which attribute names the service
+  returned. This step never stops the salt update.
 - **The workflow stopped running:** GitHub pauses scheduled workflows in repos with no
   activity for 60 days. The daily data commits normally count as activity; if it pauses,
   re-enable it on the Actions tab.
 
 Data: [USGS Water Data API](https://api.waterdata.usgs.gov/) via the USGS
 [`dataretrieval`](https://github.com/DOI-USGS/dataretrieval-python) package. State
-outlines from U.S. Census data via the folium project's `us-states.json`.
+outlines from U.S. Census data via the folium project's `us-states.json`; District of
+Columbia outline from Natural Earth. Watershed attributes from the
+[USGS NLDI](https://api.water.usgs.gov/nldi/) (NHDPlus Version 2.1, Wieczorek and others).

@@ -259,7 +259,7 @@
     .zoom { right: 2px; top: 2px; gap: 4px; }
     .zoom button { width: 28px; height: 28px; font-size: 15px; }
     .seg { display: grid; grid-template-columns: repeat(2, 1fr); width: 100%; }
-    #rankSeg { grid-template-columns: repeat(3, 1fr); }
+    #rankSeg { grid-template-columns: repeat(2, 1fr); }
     .seg button { padding: 7px 6px; font-size: 13px; }
     .card-head { margin-bottom: 10px; }
     .ev { grid-template-columns: 1fr auto; }
@@ -285,6 +285,10 @@
     <span class="ctl">
       <label class="ctl-label" for="state">Area</label>
       <select id="state"><option value="">All states</option></select>
+    </span>
+    <span class="ctl" id="luBox" hidden>
+      <label class="ctl-label" for="landuse">Watershed</label>
+      <select id="landuse"><option value="">All land use</option></select>
     </span>
     <span class="spacer" style="flex:1 1 0"></span>
     <button id="save" type="button">Save image</button>
@@ -325,7 +329,7 @@
     <div class="tooltip" id="mapTip"></div>
     <div class="site-panel" id="sitePanel" hidden>
       <div class="card-head">
-        <div><h3 id="spName"></h3><p class="note" id="spSub"></p></div>
+        <div><h3 id="spName"></h3><p class="note" id="spSub"></p><p class="note" id="spBasin" hidden></p></div>
         <div class="sp-actions">
           <a class="btn" id="spUsgs" href="#" target="_blank" rel="noopener">USGS page ↗</a>
           <button type="button" id="spCsv">Download CSV</button>
@@ -370,6 +374,7 @@
         <button type="button" data-tab="today" aria-pressed="true">Today</button>
         <button type="button" data-tab="streams" aria-pressed="false">Season: streams</button>
         <button type="button" data-tab="states" aria-pressed="false">Season: states</button>
+        <button type="button" data-tab="landuse" aria-pressed="false" hidden>Season: land use</button>
       </div>
     </div>
     <p class="note" id="rankDesc"></p>
@@ -387,10 +392,11 @@
       <li><b>Measure.</b> Specific conductance (µS/cm at 25 °C) tracks dissolved salts. Sodium chloride from road salt raises it sharply after snow and ice storms.</li>
       <li><b>Normal level.</b> Each stream's normal is the median of its daily means from May through October, when roads aren't salted (for a past winter, the May–October before it). Streams need at least 60 summer days to be included.</li>
       <li><b>Map views.</b> <i>Today</i> divides each day's mean by that normal. <i>Season peak</i> is the highest ratio since November 1, up to the selected day. <i>Days at 3×+</i> counts the days at 3× or more. <i>Between storms</i> is the low end (25th percentile) of a stream's readings over the same period, which needs at least 14 readings: where a stream sits once storm pulses pass.</li>
-      <li><b>Salt memory.</b> After a pulse of 3× or more, “days back under 1.5×” counts the days from its peak to the first reading below 1.5×. A stream that stays above 1.5× between storms may be fed by salt stored in soil and groundwater.</li>
+      <li><b>Salt memory.</b> After a pulse of 3× or more, “days back under 1.5×” counts the days from its peak to the first reading below 1.5×. If another storm pushes the stream back to 3× before it gets there, the count restarts from that newer peak. A stream that stays above 1.5× between storms may be fed by salt stored in soil and groundwater.</li>
       <li><b>Salt storms.</b> A sensor “spikes” when it reaches 3× after two days below 3×. A storm is a day when at least 8 sensors (and at least 3% of those reporting) spike in one region, merged with nearby days and regions. Regions: Northeast (New England and NY), Mid-Atlantic (NJ, PA, DE, MD, DC, VA, WV), Southeast, Midwest, Plains and South Central, and West.</li>
       <li><b>Flow.</b> Daily mean discharge (parameter 00060) at the same gages, where it is measured. “Typical flow” is the median daily flow over the period shown. Many sensors have no flow gage, and northern gages often skip ice-affected days.</li>
       <li><b>Coastal sensors.</b> Sensors the tide reaches are left out, because their salty readings are seawater, not road salt: those where USGS also records salinity, tidally filtered streamflow or water levels against sea level, and those with a gage below 15 ft elevation within 25 km of the ocean or Gulf coast. <span id="excludedNote"></span></li>
+      <li id="methodWatershed" hidden><b>Watersheds.</b> Each station's upstream watershed and its attributes (land cover, imperviousness, road and population density, baseflow index, area, climate and soils) come from the <a href="https://api.water.usgs.gov/nldi/" rel="noopener">USGS Network-Linked Data Index</a>, which serves the NHDPlus Version 2.1 watershed attributes of <a href="https://www.sciencebase.gov/catalog/item/5669a79ee4b08895842a1d47" rel="noopener">Wieczorek and others</a>. Land-use classes follow <a href="https://doi.org/10.1038/s43247-026-03788-2" rel="noopener">Chen and Husic (2026)</a>: urban (developed land), agricultural (pasture, hay and crops) or forested when that cover is more than half of the watershed, otherwise mixed. Watershed facts appear in the hover details, the stream chart and the streams CSV. <span id="attrNote"></span></li>
       <li><b>Caveats.</b> Data are provisional and can change. Not every spike is road salt: drought, wastewater, mining and sensor problems can also raise conductance. Tidal and estuary sensors are left out. Conductance is not the same as chloride concentration.</li>
       <li><b>Data.</b> <a href="https://api.waterdata.usgs.gov/" rel="noopener">USGS Water Data API</a>, daily mean specific conductance (00095) and discharge (00060), refreshed every morning. Past winters are archived each May. <span id="updated"></span></li>
     </ul>
@@ -449,6 +455,9 @@
   const regionOf = (ab) => (ab in REGION_OF ? REGION_OF[ab] : 5);
   const SEASON_MONTHS = new Set([11, 12, 1, 2, 3, 4]);
   const RANK_MIN_SENSORS = 5;
+  const LU_LIST = ["urban", "agricultural", "forested", "mixed"];
+  const LU_LABEL = { urban: "Urban", agricultural: "Agricultural", forested: "Forested", mixed: "Mixed" };
+  const LU_ADJ = { urban: "urban", agricultural: "agricultural", forested: "forested", mixed: "mixed-land-use" };
 
   const VIEWS = {
     today: { title: "How salty is each stream compared with its summer level?", legend: "Today vs. summer level" },
@@ -486,12 +495,13 @@
   function debounce(fn, ms) { let t; return () => { clearTimeout(t); t = setTimeout(fn, ms); }; }
 
   // ---------------------------------------------------------------- state
-  let statesGeo, liveRaw, seasonsList = [], excludedDoc = null;
+  let statesGeo, liveRaw, seasonsList = [], excludedDoc = null, attrDoc = null;
   const cache = {};
   let DS = null;               // prepared dataset on screen
   let seasonId = "live";
   let view = "today";
   let scopeAb = "";
+  let luFilter = "";           // watershed land-use class shown ("" = all)
   let scopeIdx = [];           // site indices in the selected state (or all)
   let day = 0;
   let M = null;                // per-site metrics for the season range up to `day`
@@ -499,7 +509,7 @@
   let highlighted = -1;
   let playing = null;
   let rankTab = "today", showAllRows = false;
-  const rankSort = { today: ["ratio", -1], streams: ["peak", -1], states: ["rank", 1] };
+  const rankSort = { today: ["ratio", -1], streams: ["peak", -1], states: ["rank", 1], landuse: ["pct3", -1] };
   let colors = {};
   let circles = [], layers = [], fadedLayer = null;
 
@@ -511,8 +521,9 @@
     fetch("data/salt.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error("data/salt.json " + r.status); return r.json(); }),
     fetch("data/seasons.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : { seasons: [] })).catch(() => ({ seasons: [] })),
     fetch("data/excluded-sites.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-  ]).then(([geo, live, idx, exc]) => {
-    statesGeo = geo; liveRaw = live; excludedDoc = exc;
+    fetch("data/site-attributes.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+  ]).then(([geo, live, idx, exc, attrs]) => {
+    statesGeo = geo; liveRaw = live; excludedDoc = exc; attrDoc = live.demo ? null : attrs;
     if (!live.sites || !live.sites.length) throw new Error("No sites in data file");
     // a demo archive only belongs next to demo live data
     seasonsList = (idx.seasons || []).filter((s) => s.file && (!!s.demo === !!live.demo));
@@ -524,6 +535,7 @@
     if (wantView && VIEWS[wantView]) setView(wantView, false);
     const st = (params.get("state") || "").toUpperCase();
     if (STATE_NAMES[st]) scopeAb = st;
+    if (LU_LABEL[params.get("landuse")]) luFilter = params.get("landuse");
     return loadSeason(seasonsList.some((s) => s.id === wantSeason) ? wantSeason : "live", { initial: true }).then(() => {
       const sid = params.get("site"), i = sid ? DS.sites.findIndex((x) => x.id === sid) : -1;
       if (i >= 0) { zoomToSite(i); openSitePanel(i, { scroll: true }); }
@@ -553,7 +565,7 @@
   function prepare(raw, id, label) {
     const n = raw.dates.length, sites = raw.sites, N = sites.length;
     const R = sites.map((s) => { const a = new Float32Array(n); for (let d = 0; d < n; d++) { const v = s.sc[d]; a[d] = v == null ? NaN : v / s.base; } return a; });
-    const Q = sites.map((s) => (s.q ? Float32Array.from(s.q, (v) => (v == null ? NaN : v)) : null));
+    const Q = sites.map((s) => (s.q ? Float64Array.from(s.q, (v) => (v == null ? NaN : v)) : null));
     const qmed = Q.map((q) => { if (!q) return NaN; const v = []; for (const x of q) if (x > 0) v.push(x); return v.length >= 20 ? median(v) : NaN; });
     const region = sites.map((s) => regionOf(s.state));
     const months = raw.dates.map((d) => +d.slice(5, 7));
@@ -565,6 +577,10 @@
     sites.forEach((s, i) => { if (s.state) (byState[s.state] = byState[s.state] || []).push(i); });
     const hasFlow = Q.some((q) => q);
     const ds = { id, label: label || "This season", raw, dates: raw.dates, sites, n, N, R, Q, qmed, region, months, s0, byState, hasFlow, archive: id !== "live" };
+    // watershed facts (data/site-attributes.json), when they have been looked up
+    ds.attr = sites.map((st) => { const a = attrDoc && attrDoc.sites && attrDoc.sites[st.id]; return a && a.status === "ok" ? a : null; });
+    ds.lu = ds.attr.map((a) => (a && LU_LABEL[a.landuse] ? a.landuse : null));
+    ds.hasAttr = ds.lu.some(Boolean);
     ds.events = detectStorms(ds);
     ds.eventByDay = new Int16Array(n).fill(-1);
     ds.events.forEach((e, k) => { for (let d = e.d0; d <= e.d1; d++) if (ds.eventByDay[d] < 0 || ds.events[ds.eventByDay[d]].sites.size < e.sites.size) ds.eventByDay[d] = k; });
@@ -693,6 +709,15 @@
     $("kicker").textContent = ds.archive ? "Salt season tracker · " + ds.label : "Salt season tracker";
     buildCircles();
     fillStateSelect();
+    if (!ds.hasAttr) luFilter = "";
+    $("methodWatershed").hidden = !ds.hasAttr;
+    if (ds.hasAttr) {
+      const n = ds.lu.filter(Boolean).length;
+      $("attrNote").textContent = "Watershed facts are available for " + fmtInt(n) + " of " + fmtInt(ds.N) + " stations shown" + (attrDoc.updated_utc ? " (looked up " + fmtDate(attrDoc.updated_utc.slice(0, 10)) + ")" : "") + ".";
+    }
+    const luBtn = document.querySelector('#rankSeg button[data-tab="landuse"]');
+    luBtn.hidden = !ds.hasAttr;
+    if (!ds.hasAttr && rankTab === "landuse") { rankTab = "today"; document.querySelectorAll("#rankSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.tab === "today"))); }
     renderExcluded();
     const slider = $("day");
     slider.max = ds.n - 1;
@@ -760,9 +785,29 @@
     sel.value = keep;
   }
 
+  function fillLanduseSelect() {
+    const box = $("luBox"), sel = $("landuse");
+    box.hidden = !DS.hasAttr;
+    if (!DS.hasAttr) return;
+    const base = scopeAb ? DS.byState[scopeAb] || [] : DS.sites.map((_, i) => i);
+    const count = (c) => base.filter((i) => DS.lu[i] === c).length;
+    sel.replaceChildren(new Option("All land use", ""));
+    LU_LIST.forEach((c) => { const n = count(c), o = new Option(LU_LABEL[c] + " (" + n + ")", c); o.disabled = !n && c !== luFilter; sel.append(o); });
+    sel.value = luFilter;
+  }
+
+  function setLanduse(v) {
+    stop();
+    luFilter = v || "";
+    setScope(scopeAb, { noZoom: true });
+    syncUrl();
+  }
+
   function setScope(ab, opts = {}) {
     scopeAb = ab;
-    scopeIdx = ab ? DS.byState[ab] || [] : DS.sites.map((_, i) => i);
+    const base = ab ? DS.byState[ab] || [] : DS.sites.map((_, i) => i);
+    scopeIdx = luFilter && DS.hasAttr ? base.filter((i) => DS.lu[i] === luFilter) : base;
+    fillLanduseSelect();
     $("state").value = ab;
     DS.sum = scopeSummary();
     const sp = $("map").querySelector("#selState");
@@ -773,7 +818,12 @@
     highlighted = -1;
     const pi = panelIndex();
     if (pi >= 0) { if (!ab || DS.sites[pi].state === ab) highlighted = pi; else closeSitePanel(false); }
-    if (opts.animate !== false) zoomToScope(path); else { if (path) zoomToScope(path, true); else setView_(zoomV = { x0: 0, y0: 0, k: 1 }); }
+    if (opts.noZoom) { paintMap(); }
+    else if (ab && !path && base.length) {
+      // no outline for this area: zoom to its sensors instead of the whole country
+      const xs = base.map((i) => DS.sites[i].x), ys = base.map((i) => DS.sites[i].y);
+      fitBox(Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys), 0.6, opts.animate === false);
+    } else if (opts.animate !== false) zoomToScope(path); else { if (path) zoomToScope(path, true); else setView_(zoomV = { x0: 0, y0: 0, k: 1 }); }
     if (!opts.keepDay) setDay(day, true);
   }
 
@@ -787,9 +837,11 @@
   }
 
   function scopeName(plural_ = true) {
-    if (!scopeAb) return plural_ ? "U.S. streams" : "U.S. stream";
-    return STATE_NAMES[scopeAb] + (plural_ ? " streams" : " stream");
+    const adj = luFilter ? LU_ADJ[luFilter] + " " : "";
+    if (!scopeAb) return adj + (plural_ ? "U.S. streams" : "U.S. stream");
+    return adj + STATE_NAMES[scopeAb] + (plural_ ? " streams" : " stream");
   }
+  const scopeKey = () => scopeAb + "|" + luFilter;
 
   // ---------------------------------------------------------------- map
   function buildStaticMap() {
@@ -827,7 +879,7 @@
 
   function paintMap() {
     if (!DS || !M || M.ds !== DS) return;
-    const scale = viewScale(), inScope = scopeAb ? new Uint8Array(DS.N) : null;
+    const scale = viewScale(), inScope = scopeAb || luFilter ? new Uint8Array(DS.N) : null;
     if (inScope) for (const i of scopeIdx) inScope[i] = 1;
     const shrink = Math.pow(zoomV.k, -0.6) * dotScale();
     for (let i = 0; i < circles.length; i++) {
@@ -901,7 +953,7 @@
   }
   function fitBox(x1, y1, x2, y2, pad, instant) {
     const w = Math.max(10, x2 - x1), hh = Math.max(8, y2 - y1);
-    const k = Math.min(MW / (w * (1 + pad)), MH / (hh * (1 + pad)));
+    const k = Math.max(1, Math.min(40, MW / (w * (1 + pad)), MH / (hh * (1 + pad)))); // cap first so the box stays centered
     const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
     animateView(clampView({ k, x0: cx - MW / (2 * k), y0: cy - MH / (2 * k) }), instant);
   }
@@ -1027,6 +1079,7 @@
     else big = M.between[i] >= 0 ? "Between storms: " + fmtRatio(M.between[i]) : "Too few readings for a between-storm level";
     tip.append(h("div", "big", big));
     tip.append(h("div", "name", s.name + (s.state && !s.name.endsWith(", " + s.state) ? ", " + s.state : "")));
+    if (DS.attr && DS.attr[i]) tip.append(h("div", "kv", basinShort(DS.attr[i])));
     tip.append(h("div", "meta", (v == null ? "No reading" : fmtInt(v) + " µS/cm") + " on " + fmtDate(DS.dates[day], SHORT) + (r >= 0 && view !== "today" ? " (" + fmtRatio(r) + ")" : "") + " · normal " + fmtInt(s.base)));
     const fc = flowClass(i, day);
     if (DS.Q[i]) {
@@ -1055,6 +1108,31 @@
     const ring = $("hl");
     ring.setAttribute("cx", s.x); ring.setAttribute("cy", s.y); ring.setAttribute("r", 9 * Math.pow(zoomV.k, -0.6) * dotScale());
     ring.setAttribute("stroke", colors.ink); ring.setAttribute("visibility", "visible");
+  }
+  // ---- watershed facts ----
+  const fmt1 = (v) => (v == null || !isFinite(v) ? "—" : v >= 10 || Number.isInteger(v) ? Math.round(v).toLocaleString("en-US") : v.toFixed(1));
+  const fmtArea = (a) => (a >= 100 ? fmtInt(a) : a >= 10 ? a.toFixed(0) : a.toFixed(1)) + " km²";
+  const attrVal = (i, k) => { const a = DS.attr && DS.attr[i]; return a && a[k] != null && isFinite(a[k]) ? a[k] : null; };
+  const unitOf = (k, fallback) => (attrDoc && attrDoc.variables && attrDoc.variables[k] && attrDoc.variables[k].units) || fallback;
+  function basinShort(a) {
+    const bits = [(LU_LABEL[a.landuse] || "Unclassified") + " watershed"];
+    if (a.urban_pct != null) bits.push(fmtPct(a.urban_pct) + " developed");
+    if (a.impervious_pct != null) bits.push(fmtPct(a.impervious_pct) + " impervious");
+    if (a.area_km2 != null) bits.push(fmtArea(a.area_km2));
+    return bits.join(" · ");
+  }
+  function basinLong(a) {
+    const out = [];
+    out.push("Watershed: " + (LU_LABEL[a.landuse] ? LU_ADJ[a.landuse] : "not classified") + (a.area_km2 != null ? ", " + fmtArea(a.area_km2) : "") + ".");
+    const lc = [];
+    if (a.urban_pct != null) lc.push(fmtPct(a.urban_pct) + " developed", fmtPct(a.forest_pct) + " forest", fmtPct(a.ag_pct) + " agriculture");
+    if (lc.length) out.push("Land cover" + (a.nlcd_year ? " (" + a.nlcd_year + ")" : "") + ": " + lc.join(", ") + (a.impervious_pct != null ? "; " + fmtPct(a.impervious_pct) + " impervious" : "") + ".");
+    const more = [];
+    if (a.road_density != null) more.push("road density " + fmt1(a.road_density) + " " + unitOf("road_density", "km/km²"));
+    if (a.pop_density != null) more.push(fmt1(a.pop_density) + " " + unitOf("pop_density", "people per km²"));
+    if (a.bfi_pct != null) more.push("baseflow index " + fmtPct(a.bfi_pct));
+    if (more.length) out.push(more.join(", ").replace(/^./, (c) => c.toUpperCase()) + ".");
+    return out.join(" ");
   }
   const fmtFlow = (q) => (q >= 100 ? fmtInt(q) : q >= 10 ? q.toFixed(0) : q >= 1 ? q.toFixed(1) : q.toPrecision(2));
 
@@ -1143,6 +1221,9 @@
     $("spSub").textContent = s.id.replace(/^USGS-/, "USGS ") + " · daily mean specific conductance" + (hasQ ? " and streamflow" : "") + ", " +
       fmtDate(DS.dates[0], DS.dates[0].slice(0, 4) === DS.dates[DS.n - 1].slice(0, 4) ? SHORT : undefined) + " – " + fmtDate(DS.dates[DS.n - 1]) + (DS.archive ? " (" + DS.label + ")" : "") +
       ". Summer level " + fmtInt(s.base) + " µS/cm" + (hasQ ? ", typical flow " + fmtFlow(DS.qmed[i]) + " cfs" : ", no streamflow gauge") + ".";
+    const at = DS.attr && DS.attr[i];
+    $("spBasin").hidden = !at;
+    $("spBasin").textContent = at ? basinLong(at) : "";
     $("spUsgs").href = siteUrl(s.id);
     $("spChart").setAttribute("aria-label", "Daily salinity" + (hasQ ? " and streamflow" : "") + " at " + s.name);
     renderSiteStats();
@@ -1317,9 +1398,10 @@
 
   // ---------------------------------------------------------------- chart
   function scopeEvents() {
+    const inS = scopeAb || luFilter ? new Set(scopeIdx) : null;
     const evs = DS.events.map((e, k) => {
       let n = e.sites.size;
-      if (scopeAb) { n = 0; e.sites.forEach((i) => { if (DS.sites[i].state === scopeAb) n++; }); }
+      if (inS) { n = 0; e.sites.forEach((i) => { if (inS.has(i)) n++; }); }
       return { e, k, n };
     });
     return evs.filter((x) => x.n > 0);
@@ -1328,7 +1410,7 @@
   function eventText(x, short) {
     const e = x.e, when = fmtDate(DS.dates[e.peakDay], SHORT);
     if (short) return when + " · " + fmtInt(x.n);
-    if (scopeAb) return when + ": " + plural(x.n, STATE_NAMES[scopeAb] + " stream", STATE_NAMES[scopeAb] + " streams") + " spiked";
+    if (scopeAb || luFilter) return when + ": " + plural(x.n, scopeName(false), scopeName()) + " spiked";
     return when + ": " + plural(x.n, "stream", "streams") + " spiked " + whereText(e);
   }
   function whereText(e) {
@@ -1473,9 +1555,9 @@
     const box = $("events"); box.replaceChildren();
     const [a, d] = seasonRange();
     const evs = scopeEvents().filter((x) => x.e.d0 >= a);
-    $("stormTitle").textContent = "Salt storms" + (scopeAb ? " in " + STATE_NAMES[scopeAb] : "") + ", " + rangeLong(a, DS.n - 1);
+    $("stormTitle").textContent = "Salt storms" + (scopeAb ? " in " + STATE_NAMES[scopeAb] : "") + (luFilter ? " (" + LU_ADJ[luFilter] + " streams)" : "") + ", " + rangeLong(a, DS.n - 1);
     if (!evs.length) {
-      box.append(h("div", "empty-note", DS.n - 1 - DS.s0 < 21 && !DS.archive ? "No salt storms detected yet this season." : "No salt storms detected" + (scopeAb ? " in " + STATE_NAMES[scopeAb] : "") + " in this period."));
+      box.append(h("div", "empty-note", DS.n - 1 - DS.s0 < 21 && !DS.archive ? "No salt storms detected yet this season." : "No salt storms detected" + (scopeAb || luFilter ? " in " + scopeName() : "") + " in this period."));
       return;
     }
     const maxN = Math.max(...evs.map((x) => x.n));
@@ -1484,7 +1566,7 @@
       const b = h("button", "ev" + (day >= e.d0 && day <= e.d1 ? " sel" : "")); b.type = "button";
       const span = e.d1 > e.d0 ? fmtDate(DS.dates[e.d0], SHORT) + "–" + fmtDate(DS.dates[e.d1], e.d0 && DS.dates[e.d0].slice(5, 7) === DS.dates[e.d1].slice(5, 7) ? { day: "numeric" } : SHORT) : fmtDate(DS.dates[e.d0], SHORT);
       b.append(h("span", "d", span));
-      const where = (scopeAb ? "Part of a storm " + whereText(e) : whereText(e).replace(/^in the /, "")).replace(/^./, (c) => c.toUpperCase());
+      const where = (scopeAb || luFilter ? "Part of a storm " + whereText(e) : whereText(e).replace(/^in the /, "")).replace(/^./, (c) => c.toUpperCase());
       b.append(h("span", "w", where));
       const nn = h("span", "n"); nn.append(document.createTextNode(fmtInt(x.n) + " "), h("span", "", x.n === 1 ? "stream spiked" : "streams spiked"));
       b.append(nn);
@@ -1575,6 +1657,7 @@
       cols: [
         { key: "name", label: "Stream", text: true, get: (i) => DS.sites[i].name, cell: streamLink },
         { key: "state", label: "State", text: true, get: (i) => DS.sites[i].state },
+        { key: "lu", label: "Land use", text: true, attr: true, get: (i) => (DS.lu[i] ? LU_LABEL[DS.lu[i]] : "") },
         { key: "peak", label: "Peak (× summer)", get: (i) => M.peak[i], fmt: fmtRatio },
         { key: "pday", label: "Peak date", get: (i) => M.peakDay[i], fmt: (v) => (v >= 0 ? fmtDate(DS.dates[v], SHORT) : "—"), csv: (v) => (v >= 0 ? DS.dates[v] : "") },
         { key: "n15", label: "Days ≥1.5×", get: (i) => M.n15[i], fmt: fmtInt },
@@ -1583,6 +1666,23 @@
         { key: "rec", label: "Days back under 1.5×", get: recKey, fmt: (v, i) => recText(i), csv: (v, i) => (M.recs[i].length ? M.recMed[i] : M.open[i] >= 0 ? "still above 1.5x" : "") },
         { key: "between", label: "Between storms (×)", get: (i) => M.between[i], fmt: fmtRatio },
         { key: "qpeak", label: "Flow at peak (× typical)", get: (i) => M.qPeak[i], fmt: fmtRatio },
+        { key: "imperv", label: "Impervious (%)", attr: true, get: (i) => attrVal(i, "impervious_pct"), fmt: fmt1 },
+        { key: "bfi", label: "Baseflow index (%)", attr: true, get: (i) => attrVal(i, "bfi_pct"), fmt: fmt1 },
+      ],
+    },
+    landuse: {
+      desc: () => "How streams compare by the land use of their watersheds, " + rangeLong(...seasonRange()) + (scopeAb ? ", " + STATE_NAMES[scopeAb] : "") + ". Urban, agricultural or forested means that cover is more than half of the watershed (Chen and Husic, 2026); everything else is mixed. Click a row to show only those streams.",
+      rows: () => landuseRows(),
+      click: (r) => { if (r.lu) setLanduse(r.lu === luFilter ? "" : r.lu); },
+      cols: [
+        { key: "name", label: "Watershed", text: true, get: (r) => r.label },
+        { key: "sensors", label: "Sensors", get: (r) => r.sensors, fmt: fmtInt },
+        { key: "pct3", label: "Share reached 3×", get: (r) => r.pct3, fmt: fmtPct },
+        { key: "medPeak", label: "Median peak (×)", get: (r) => r.medPeak, fmt: fmtRatio },
+        { key: "medDays3", label: "Median days ≥3×", get: (r) => r.medDays3, fmt: fmt1 },
+        { key: "rec", label: "Median days back under 1.5×", get: (r) => r.rec, fmt: (v) => (isFinite(v) ? fmtInt(v) : "—") },
+        { key: "pctB15", label: "Share between storms ≥1.5×", get: (r) => r.pctB15, fmt: fmtPct },
+        { key: "imperv", label: "Median impervious (%)", get: (r) => r.imperv, fmt: fmt1 },
       ],
     },
     states: {
@@ -1607,7 +1707,7 @@
   function stateRows() {
     const rows = [];
     for (const [ab, idx] of Object.entries(DS.byState)) {
-      const live = idx.filter((i) => M.nobs[i] > 0);
+      const live = idx.filter((i) => M.nobs[i] > 0 && (!luFilter || DS.lu[i] === luFilter));
       if (!live.length) continue;
       const peaks = live.map((i) => M.peak[i]), recsAll = [];
       let hit3 = 0, days3 = 0, b15 = 0;
@@ -1620,7 +1720,29 @@
     return rows;
   }
 
+  function landuseRows() {
+    const base = (scopeAb ? DS.byState[scopeAb] || [] : DS.sites.map((_, i) => i)).filter((i) => M.nobs[i] > 0);
+    const groups = new Map();
+    for (const i of base) { const k = DS.lu[i] || ""; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); }
+    return [...LU_LIST, ""].filter((k) => groups.has(k)).map((k) => {
+      const idx = groups.get(k), recs = [];
+      let hit3 = 0, withB = 0, b15 = 0;
+      for (const i of idx) { if (M.peak[i] >= 3) hit3++; if (M.between[i] >= 0) { withB++; if (M.between[i] >= 1.5) b15++; } recs.push(...M.recs[i]); }
+      const imp = idx.map((i) => attrVal(i, "impervious_pct")).filter((v) => v != null);
+      return { lu: k || null, label: k ? LU_LABEL[k] : "Not classified", sensors: idx.length, pct3: (100 * hit3) / idx.length,
+        medPeak: median(idx.map((i) => M.peak[i])), medDays3: median(idx.map((i) => M.n3[i])), rec: median(recs),
+        pctB15: withB ? (100 * b15) / withB : null, imperv: imp.length ? median(imp) : null };
+    });
+  }
+
   function sortRows(tab, rows) {
+    if (tab === "landuse") { // "Not classified" always last
+      const out = sortRows.core(tab, rows.filter((r) => r.lu));
+      return out.concat(rows.filter((r) => !r.lu));
+    }
+    return sortRows.core(tab, rows);
+  }
+  sortRows.core = function (tab, rows) {
     const T = TABS[tab], [key, dir] = rankSort[tab], col = T.cols.find((c) => c.key === key);
     const isMissing = (v) => v == null || v === "" || Number.isNaN(v) || v < 0 || (key === "rank" && v === 0);
     return rows.map((r) => [r, col.get(r)]).sort((x, y) => {
@@ -1629,16 +1751,17 @@
       if (col.text) return dir * String(x[1]).localeCompare(String(y[1]));
       return x[1] === y[1] ? 0 : dir * (x[1] < y[1] ? -1 : 1);
     }).map((x) => x[0]);
-  }
+  };
 
   function renderRankings() {
-    const T = TABS[rankTab], t = $("rankTable");
-    $("rankTitle").textContent = rankTab === "today" ? "Saltiest streams on " + fmtDate(DS.dates[day]) : rankTab === "streams" ? "Season scorecard: streams" : "Season scorecard: states";
+    const T = TABS[rankTab], t = $("rankTable"), cols = T.cols.filter((c) => !c.attr || DS.hasAttr);
+    $("rankTitle").textContent = rankTab === "today" ? "Saltiest streams on " + fmtDate(DS.dates[day]) : rankTab === "streams" ? "Season scorecard: streams" : rankTab === "states" ? "Season scorecard: states" : "Season scorecard: land use";
     if (scopeAb && rankTab !== "states") $("rankTitle").textContent += " · " + STATE_NAMES[scopeAb];
+    if (luFilter && rankTab !== "landuse") $("rankTitle").textContent += " · " + LU_LABEL[luFilter] + " watersheds";
     $("rankDesc").textContent = T.desc();
     t.replaceChildren();
     const hr = t.createTHead().insertRow();
-    T.cols.forEach((c) => {
+    cols.forEach((c) => {
       const th = h("th", "sortable" + (c.text ? "" : " num"), c.label);
       th.tabIndex = 0;
       th.setAttribute("aria-sort", c.key === rankSort[rankTab][0] ? (rankSort[rankTab][1] > 0 ? "ascending" : "descending") : "none");
@@ -1655,8 +1778,8 @@
     const body = t.createTBody();
     for (const r of rows.slice(0, limit)) {
       const tr = body.insertRow();
-      if (rankTab === "states" && r.ab === scopeAb) tr.classList.add("sel");
-      T.cols.forEach((c) => {
+      if ((rankTab === "states" && r.ab === scopeAb) || (rankTab === "landuse" && r.lu && r.lu === luFilter)) tr.classList.add("sel");
+      cols.forEach((c) => {
         const td = tr.insertCell(), v = c.get(r);
         if (c.cell) td.append(c.cell(r)); else td.textContent = c.fmt ? c.fmt(v, r) : v || "";
         if (!c.text) td.className = "num";
@@ -1664,17 +1787,32 @@
       });
       tr.addEventListener("click", (ev) => { if (ev.target.tagName !== "A") T.click(r); });
     }
-    if (!rows.length) { const td = body.insertRow().insertCell(); td.colSpan = T.cols.length; td.textContent = "No sensors reported in this period."; }
+    if (!rows.length) { const td = body.insertRow().insertCell(); td.colSpan = cols.length; td.textContent = "No sensors reported in this period."; }
     const more = rows.length > limit;
     $("showAll").hidden = !(more || showAllRows) || rows.length <= 15;
     $("showAll").textContent = showAllRows ? "Show fewer" : "Show all " + fmtInt(rows.length);
-    $("rankCount").textContent = rankTab === "states" ? fmtInt(rows.length) + " states with sensors" : plural(rows.length, "stream", "streams") + (scopeAb ? " in " + STATE_NAMES[scopeAb] : "");
+    $("rankCount").textContent = rankTab === "states" ? fmtInt(rows.length) + " states with sensors" : rankTab === "landuse" ? plural(rows.reduce((t, r) => t + r.sensors, 0), "stream", "streams") + (scopeAb ? " in " + STATE_NAMES[scopeAb] : "") : plural(rows.length, "stream", "streams") + (scopeAb ? " in " + STATE_NAMES[scopeAb] : "");
   }
 
   function downloadCsv() {
     const T = TABS[rankTab], rows = sortRows(rankTab, T.rows());
     const esc = (v) => (typeof v === "string" && /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v);
-    const cols = rankTab === "states" ? [{ key: "ab", label: "State code", get: (r) => r.ab, text: true }, ...T.cols] : [{ key: "id", label: "USGS site", get: (i) => DS.sites[i].id, text: true }, ...T.cols];
+    const shown = T.cols.filter((c) => !c.attr);
+    const cols = rankTab === "states" ? [{ key: "ab", label: "State code", get: (r) => r.ab, text: true }, ...shown]
+      : rankTab === "landuse" ? shown : [{ key: "id", label: "USGS site", get: (i) => DS.sites[i].id, text: true }, ...shown];
+    if ((rankTab === "today" || rankTab === "streams") && DS.hasAttr) {
+      const extra = [["Watershed land use", "landuse", true], ["Developed (%)", "urban_pct"], ["Forest (%)", "forest_pct"], ["Agriculture (%)", "ag_pct"],
+        ["Water (%)", "water_pct"], ["Wetland (%)", "wetland_pct"], ["NLCD year", "nlcd_year"], ["Impervious (%)", "impervious_pct"],
+        ["Road density", "road_density"], ["Population density", "pop_density"], ["Baseflow index (%)", "bfi_pct"], ["Watershed area (km2)", "area_km2"],
+        ["Mean slope", "slope_pct"], ["Mean elevation", "elev_m"], ["Mean annual precipitation", "precip_mm"], ["Mean annual temperature", "temp_c"],
+        ["Clay", "clay_pct"], ["Sand", "sand_pct"], ["Dams upstream", "dams"], ["NHDPlus COMID", "comid", true]];
+      for (const [label, k, text] of extra) {
+        const u = attrDoc.variables && attrDoc.variables[k] && attrDoc.variables[k].units;
+        const lab = u && !/\(/.test(label) ? label + " (" + u + ")" : label;
+        cols.push(text ? { key: "a_" + k, label: lab, text: true, get: (i) => { const a = DS.attr[i]; return a && a[k] != null ? (k === "landuse" ? LU_LABEL[a[k]] || "" : String(a[k])) : ""; } }
+          : { key: "a_" + k, label: lab, get: (i) => attrVal(i, k) });
+      }
+    }
     const lines = [cols.map((c) => esc(c.label.replace("×", "x").replace("≥", ">="))).join(",")];
     for (const r of rows) {
       lines.push(cols.map((c) => {
@@ -1688,11 +1826,13 @@
     const [a, d] = rankTab === "today" ? [day, day] : seasonRange();
     lines.push("", esc("Period: " + DS.dates[a] + " to " + DS.dates[d] + (DS.archive ? " (" + DS.label + ")" : "")));
     lines.push(esc("Source: USGS Water Data API, daily mean specific conductance (00095) and discharge (00060), provisional. Ratios compare with each stream's May-Oct median. Analysis by Shantanu Bhide, shantanubhide.com/salt-tracker"));
+    if (DS.hasAttr) lines.push(esc("Watershed attributes: USGS NLDI, NHDPlus v2.1 total upstream watershed attributes (Wieczorek and others). Land-use classes after Chen and Husic (2026), Communications Earth & Environment."));
+    if (luFilter && rankTab !== "landuse") lines.push(esc("Filtered to " + LU_ADJ[luFilter] + " watersheds."));
     if (DS.raw.demo) lines.push(esc("SYNTHETIC TEST DATA - not real measurements"));
     const blob = new Blob([lines.join("\n")], { type: "text/csv" });
     const a_ = document.createElement("a");
     a_.href = URL.createObjectURL(blob);
-    a_.download = "salt-" + (rankTab === "today" ? "today-" + DS.dates[day] : rankTab + "-" + (DS.archive ? DS.id : DS.dates[a] + "-to-" + DS.dates[d])) + (scopeAb && rankTab !== "states" ? "-" + scopeAb : "") + ".csv";
+    a_.download = "salt-" + (rankTab === "today" ? "today-" + DS.dates[day] : rankTab + "-" + (DS.archive ? DS.id : DS.dates[a] + "-to-" + DS.dates[d])) + (scopeAb && rankTab !== "states" ? "-" + scopeAb : "") + (luFilter && rankTab !== "landuse" ? "-" + luFilter : "") + ".csv";
     document.body.append(a_); a_.click(); a_.remove();
   }
 
@@ -1729,8 +1869,8 @@
     const [a] = seasonRange();
     if (!M || M.ds !== DS || M.a !== a || M.d !== d) M = computeMetrics(a, d);
     paintMap();
-    if (force || !drawChart.layout || drawChart.ds !== DS || drawChart.scope !== scopeAb) {
-      drawChart(); buildDailyTable(); drawChart.ds = DS; drawChart.scope = scopeAb;
+    if (force || !drawChart.layout || drawChart.ds !== DS || drawChart.scope !== scopeKey()) {
+      drawChart(); buildDailyTable(); drawChart.ds = DS; drawChart.scope = scopeKey();
     } else {
       const wash = $("selWash"), L = drawChart.layout;
       if (wash && L) wash.setAttribute("x", L.m.l + day * L.slot);
@@ -1840,10 +1980,10 @@
     note.textContent = "";
     if (scopeAb) {
       const rows = stateRows(), me = rows.find((r) => r.ab === scopeAb);
-      if (me && me.rank) note.textContent = STATE_NAMES[scopeAb] + " ranks " + ordinal(me.rank) + " of " + stateRows.ranked + " states for the share of sensors that reached 3× their summer level, " + rangeLong(...seasonRange()) + " (" + fmtPct(me.pct3) + ").";
-      else if (me) note.textContent = STATE_NAMES[scopeAb] + " has fewer than " + RANK_MIN_SENSORS + " sensors reporting in this period, so it isn't ranked.";
+      if (me && me.rank) note.textContent = STATE_NAMES[scopeAb] + " ranks " + ordinal(me.rank) + " of " + stateRows.ranked + " states for the share of " + (luFilter ? LU_ADJ[luFilter] + " " : "") + "sensors that reached 3× their summer level, " + rangeLong(...seasonRange()) + " (" + fmtPct(me.pct3) + ").";
+      else if (me) note.textContent = STATE_NAMES[scopeAb] + " has fewer than " + RANK_MIN_SENSORS + " " + (luFilter ? LU_ADJ[luFilter] + " " : "") + "sensors reporting in this period, so it isn't ranked.";
     }
-    $("chartTitle").textContent = "Share of " + (scopeAb ? STATE_NAMES[scopeAb] + "'s" : "reporting") + " sensors above their summer level";
+    $("chartTitle").textContent = "Share of " + (scopeAb ? STATE_NAMES[scopeAb] + "'s " : "reporting ") + (luFilter ? LU_ADJ[luFilter] + " " : "") + "sensors above their summer level";
   }
 
   // ---------------------------------------------------------------- playback
@@ -1869,6 +2009,7 @@
     $("seasonBox").hidden = !seasonsList.length;
     sel.addEventListener("change", () => loadSeason(sel.value).then(syncUrl));
     $("state").addEventListener("change", () => { stop(); setScope($("state").value); syncUrl(); });
+    $("landuse").addEventListener("change", () => setLanduse($("landuse").value));
     $("day").addEventListener("input", () => { stop(); setDay(+$("day").value); });
     $("play").addEventListener("click", togglePlay);
     $("spClose").addEventListener("click", () => closeSitePanel());
@@ -1894,6 +2035,7 @@
     const p = new URLSearchParams();
     if (seasonId !== "live") p.set("season", seasonId);
     if (scopeAb) p.set("state", scopeAb);
+    if (luFilter) p.set("landuse", luFilter);
     if (view !== "today") p.set("view", view);
     if (panelId) p.set("site", panelId);
     const q = p.toString();
@@ -1966,7 +2108,7 @@
       const sTop = mapTop + mapH + 10, sBottom = H - pad - 52, sH = sBottom - sTop - 26;
       if (sH > 50) {
         ctx.fillStyle = colors.ink2; ctx.font = font(400, 17);
-        ctx.fillText("Share of " + (scopeAb ? STATE_NAMES[scopeAb] + "'s " : "") + "sensors above 1.5× their summer level, " + fmtDate(DS.dates[0], SHORT) + " – " + fmtDate(DS.dates[DS.n - 1]), pad, sTop + 14);
+        ctx.fillText("Share of " + (scopeAb ? STATE_NAMES[scopeAb] + "'s " : "") + (luFilter ? LU_ADJ[luFilter] + " " : "") + "sensors above 1.5× their summer level, " + fmtDate(DS.dates[0], SHORT) + " – " + fmtDate(DS.dates[DS.n - 1]), pad, sTop + 14);
         const share = DS.sum.map((s) => (s.reporting ? s.counts.map((c) => c / s.reporting) : [0, 0, 0, 0]));
         const peak = Math.max(0.05, ...share.map((s) => s[1] + s[2] + s[3]));
         const x0 = pad, cw = (W - 2 * pad) / share.length, base = sBottom;
@@ -1996,7 +2138,7 @@
       canvas.toBlob((png) => {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(png);
-        a.download = "salt-tracker-" + (DS.archive ? DS.id + "-" : "") + view + "-" + (scopeAb ? scopeAb + "-" : "") + DS.dates[day] + ".png";
+        a.download = "salt-tracker-" + (DS.archive ? DS.id + "-" : "") + view + "-" + (scopeAb ? scopeAb + "-" : "") + (luFilter ? luFilter + "-" : "") + DS.dates[day] + ".png";
         document.body.append(a); a.click(); a.remove();
       }, "image/png");
     };
