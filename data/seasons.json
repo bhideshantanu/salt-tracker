@@ -48,6 +48,13 @@
    "file": "data/season-2019-20.json",
    "sites": 564,
    "demo": false
+  },
+  {
+   "id": "2018-19",
+   "label": "Winter 2018\u201319",
+   "file": "data/season-2018-19.json",
+   "sites": 534,
+   "demo": false
   }
  ]
 }
