@@ -27,6 +27,13 @@
    "file": "data/season-2022-23.json",
    "sites": 645,
    "demo": false
+  },
+  {
+   "id": "2021-22",
+   "label": "Winter 2021\u201322",
+   "file": "data/season-2021-22.json",
+   "sites": 648,
+   "demo": false
   }
  ]
 }
