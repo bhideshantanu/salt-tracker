@@ -1,0 +1,69 @@
+# Builds the winter archives that are missing, newest first, back to the year you pick,
+# and saves each winter as soon as it is done (so a long run that stops early keeps its
+# progress). Run it from the Actions tab: Backfill past winters -> Run workflow.
+name: Backfill past winters
+
+on:
+  workflow_dispatch:
+    inputs:
+      first_year:
+        description: "Oldest winter to build, by its starting year (2016 = winter 2016-17)"
+        type: string
+        default: "2016"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: salt-data # waits for the daily update instead of colliding with it
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - name: Get the repository files
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install packages
+        run: pip install -r requirements.txt
+
+      - name: Build each missing winter and save it
+        env:
+          API_USGS_PAT: ${{ secrets.API_USGS_PAT }}
+          FIRST: ${{ inputs.first_year }}
+        run: |
+          case "$FIRST" in
+            [12][0-9][0-9][0-9]) ;;
+            *) echo "The oldest winter must be a starting year such as 2016"; exit 1 ;;
+          esac
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          year=$(date -u +%Y); month=$(date -u +%-m)
+          if [ "$month" -ge 5 ]; then latest=$((year - 1)); else latest=$((year - 2)); fi
+          built=0; failed=""
+          for y in $(seq "$latest" -1 "$FIRST"); do
+            id="$y-$(printf %02d $(( (y + 1) % 100 )))"
+            if [ -f "data/season-$id.json" ]; then echo "Winter $id is already built."; continue; fi
+            echo "::group::Winter $id"
+            if python scripts/fetch_salt.py --season "$y"; then
+              python scripts/fetch_attributes.py || echo "Watershed lookups will be retried tomorrow."
+              git add data/
+              git commit -m "Add winter $id" && git pull --rebase && git push
+              built=$((built + 1))
+            else
+              echo "::warning::Winter $id could not be built this time; run this workflow again later to retry it."
+              failed="$failed $id"
+              git checkout -- data/ 2>/dev/null || true
+              git clean -fdq data/ 2>/dev/null || true
+            fi
+            echo "::endgroup::"
+          done
+          echo "Built $built winter(s).${failed:+ Not built:$failed}"

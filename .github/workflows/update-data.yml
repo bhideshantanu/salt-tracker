@@ -55,6 +55,10 @@ jobs:
             python scripts/fetch_salt.py $FULL
           fi
 
+      - name: Look up watershed facts for new stations
+        continue-on-error: true # never blocks the salt update
+        run: python scripts/fetch_attributes.py
+
       - name: Save the new data (only if something changed)
         run: |
           git config user.name "github-actions[bot]"
