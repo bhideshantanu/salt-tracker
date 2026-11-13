@@ -4414,6 +4414,392 @@
      "reason": "gage at 5 ft elevation, 13 km from the coast"
     }
    ]
+  },
+  "2016-17": {
+   "updated_utc": "2026-11-13T17:21:54+00:00",
+   "tide_lookup_ok": true,
+   "sites": [
+    {
+     "id": "USGS-02301638",
+     "name": "Alafia River at Bell Shoals near Riverview Fl",
+     "state": "FL",
+     "lon": -82.2737,
+     "lat": 27.8589,
+     "altitude_ft": 0.0,
+     "coast_km": 12.1,
+     "reason": "gage at 0 ft elevation, 12 km from the coast"
+    },
+    {
+     "id": "USGS-022907085",
+     "name": "Black Creek Canal West of Us1 near Goulds, FL",
+     "state": "FL",
+     "lon": -80.3787,
+     "lat": 25.5709,
+     "altitude_ft": null,
+     "coast_km": null,
+     "reason": "USGS also measures salinity here"
+    },
+    {
+     "id": "USGS-022908295",
+     "name": "Bottle Creek at Rookery Branch near Homestead, FL",
+     "state": "FL",
+     "lon": -80.8545,
+     "lat": 25.468,
+     "altitude_ft": null,
+     "coast_km": null,
+     "reason": "USGS also measures salinity here"
+    },
+    {
+     "id": "USGS-02292900",
+     "name": "Caloosahatchee River at S-79, Nr.Olga, Fla",
+     "state": "FL",
+     "lon": -81.6932,
+     "lat": 26.7217,
+     "altitude_ft": -1.4,
+     "coast_km": 8.7,
+     "reason": "gage at -1 ft elevation, 9 km from the coast"
+    },
+    {
+     "id": "USGS-253044080555900",
+     "name": "Eden 3 in Everglades National Park",
+     "state": "FL",
+     "lon": -80.9332,
+     "lat": 25.5121,
+     "altitude_ft": 0.0,
+     "coast_km": 21.6,
+     "reason": "USGS also measures salinity here; gage at 0 ft elevation, 22 km from the coast"
+    },
+    {
+     "id": "USGS-02304000",
+     "name": "Hillsborough R at Fowler Av near Temple Terrace Fl",
+     "state": "FL",
+     "lon": -82.3637,
+     "lat": 28.0545,
+     "altitude_ft": -0.9,
+     "coast_km": 15.6,
+     "reason": "gage at -1 ft elevation, 16 km from the coast"
+    },
+    {
+     "id": "USGS-023060013",
+     "name": "Hillsborough R. at I-275 Bridge at Sulphur Spgs Fl",
+     "state": "FL",
+     "lon": -82.4548,
+     "lat": 28.0203,
+     "altitude_ft": -0.8,
+     "coast_km": 9.9,
+     "reason": "gage at -1 ft elevation, 10 km from the coast"
+    },
+    {
+     "id": "USGS-300803081354500",
+     "name": "Julington Crk at Hood Landing near Bayard, FL",
+     "state": "FL",
+     "lon": -81.5959,
+     "lat": 30.1341,
+     "altitude_ft": null,
+     "coast_km": null,
+     "reason": "USGS also measures salinity here"
+    },
+    {
+     "id": "USGS-265929080091800",
+     "name": "Lox River at Outlet of Kitchings Creek, FL",
+     "state": "FL",
+     "lon": -80.1548,
+     "lat": 26.9914,
+     "altitude_ft": null,
+     "coast_km": null,
+     "reason": "USGS also measures salinity here"
+    },
+    {
+     "id": "USGS-265906080093500",
+     "name": "Loxahatchee River at Mile 9.1 near Jupiter, FL",
+     "state": "FL",
+     "lon": -80.16,
+     "lat": 26.9853,
+     "altitude_ft": null,
+     "coast_km": null,
+     "reason": "USGS also measures salinity here"
+    },
+    {
+     "id": "USGS-023000095",
+     "name": "Manatee River at Rye Fl",
+     "state": "FL",
+     "lon": -82.367,
+     "lat": 27.5136,
+     "altitude_ft": 0.0,
+     "coast_km": 20.9,
+     "reason": "gage at 0 ft elevation, 21 km from the coast"
+    },
+    {
+     "id": "USGS-301204081434900",
+     "name": "Ortega River Salinity at Jacksonville, FL",
+     "state": "FL",
+     "lon": -81.7304,
+     "lat": 30.2012,
+     "altitude_ft": null,
+     "coast_km": null,
+     "reason": "USGS also measures salinity here"
+    },
+    {
+     "id": "USGS-02297460",
+     "name": "Peace River at Harbour Heights Fl",
+     "state": "FL",
+     "lon": -81.9943,
+     "lat": 26.9876,
+     "altitude_ft": 0.0,
+     "coast_km": 0.5,
+     "reason": "gage at 0 ft elevation, 0 km from the coast"
+    },
+    {
+     "id": "USGS-02297345",
+     "name": "Peace River at Platt Fl",
+     "state": "FL",
+     "lon": -81.9994,
+     "lat": 27.0867,
+     "altitude_ft": 0.0,
+     "coast_km": 10.3,
+     "reason": "gage at 0 ft elevation, 10 km from the coast"
+    },
+    {
+     "id": "USGS-02297350",
+     "name": "Peace River near Peace River Heights near Ft. Ogden Fl",
+     "state": "FL",
+     "lon": -82.0073,
+     "lat": 27.0776,
+     "altitude_ft": 0.0,
+     "coast_km": 9.5,
+     "reason": "gage at 0 ft elevation, 10 km from the coast"
+    },
+    {
+     "id": "USGS-02299727",
+     "name": "Shakett Creek near Nokomis Fl",
+     "state": "FL",
+     "lon": -82.4301,
+     "lat": 27.1439,
+     "altitude_ft": 0.0,
+     "coast_km": 4.7,
+     "reason": "gage at 0 ft elevation, 5 km from the coast"
+    },
+    {
+     "id": "USGS-02298202",
+     "name": "Shell Creek near Punta Gorda Fl",
+     "state": "FL",
+     "lon": -81.9357,
+     "lat": 26.9848,
+     "altitude_ft": 0.0,
+     "coast_km": 4.4,
+     "reason": "gage at 0 ft elevation, 4 km from the coast"
+    },
+    {
+     "id": "USGS-294213081345300",
+     "name": "St. Johns River at Dancy Point near Spuds, FL",
+     "state": "FL",
+     "lon": -81.5812,
+     "lat": 29.7039,
+     "altitude_ft": null,
+     "coast_km": null,
+     "reason": "USGS also measures salinity here"
+    },
+    {
+     "id": "USGS-073814675",
+     "name": "Bayou Boeuf at Railroad Bridge at Amelia, LA",
+     "state": "LA",
+     "lon": -91.0997,
+     "lat": 29.6683,
+     "altitude_ft": -1.1,
+     "coast_km": 13.9,
+     "reason": "USGS also measures salinity here; gage at -1 ft elevation, 14 km from the coast"
+    },
+    {
+     "id": "USGS-07381150",
+     "name": "Bayou Lafourche at Lockport, LA",
+     "state": "LA",
+     "lon": -90.5368,
+     "lat": 29.6471,
+     "altitude_ft": -3.9,
+     "coast_km": 33.4,
+     "reason": "USGS also measures salinity here"
+    },
+    {
+     "id": "USGS-295124089542100",
+     "name": "Caernarvon Outfall Channel at Caernarvon, LA",
+     "state": "LA",
+     "lon": -89.9077,
+     "lat": 29.8536,
+     "altitude_ft": -0.5,
+     "coast_km": 14.0,
+     "reason": "USGS also measures salinity here; gage at -0 ft elevation, 14 km from the coast"
+    },
+    {
+     "id": "USGS-07381350",
+     "name": "Company Canal at Hwy 1 at Lockport, LA",
+     "state": "LA",
+     "lon": -90.5448,
+     "lat": 29.6452,
+     "altitude_ft": -0.7,
+     "coast_km": 33.4,
+     "reason": "USGS also measures salinity here"
+    },
+    {
+     "id": "USGS-07381355",
+     "name": "Company Canal at Salt Barrier near Lockport, LA",
+     "state": "LA",
+     "lon": -90.5577,
+     "lat": 29.6273,
+     "altitude_ft": -1.2,
+     "coast_km": 31.9,
+     "reason": "USGS also measures salinity here"
+    },
+    {
+     "id": "USGS-295501090190400",
+     "name": "Davis Pond Freshwater Diversion near Boutte, LA",
+     "state": "LA",
+     "lon": -90.3178,
+     "lat": 29.9169,
+     "altitude_ft": -7.1,
+     "coast_km": 16.0,
+     "reason": "USGS also measures salinity here; gage at -7 ft elevation, 16 km from the coast"
+    },
+    {
+     "id": "USGS-07381331",
+     "name": "Giww at Houma, LA",
+     "state": "LA",
+     "lon": -90.71,
+     "lat": 29.5981,
+     "altitude_ft": -1.2,
+     "coast_km": 33.7,
+     "reason": "USGS also measures salinity here"
+    },
+    {
+     "id": "USGS-07381328",
+     "name": "Houma Navigation Canal at Dulac, LA",
+     "state": "LA",
+     "lon": -90.7298,
+     "lat": 29.3852,
+     "altitude_ft": 0.0,
+     "coast_km": 15.1,
+     "reason": "USGS also measures salinity here; gage at 0 ft elevation, 15 km from the coast"
+    },
+    {
+     "id": "USGS-07374000",
+     "name": "Mississippi River at Baton Rouge, LA",
+     "state": "LA",
+     "lon": -91.1916,
+     "lat": 30.4457,
+     "altitude_ft": 0.0,
+     "coast_km": 78.7,
+     "reason": "USGS also measures salinity here"
+    },
+    {
+     "id": "USGS-01493112",
+     "name": "Chesterville Branch near Crumpton, MD",
+     "state": "MD",
+     "lon": -75.9401,
+     "lat": 39.2571,
+     "altitude_ft": 1.7,
+     "coast_km": 12.0,
+     "reason": "gage at 2 ft elevation, 12 km from the coast"
+    },
+    {
+     "id": "USGS-02081094",
+     "name": "Roanoke River at Jamesville, NC",
+     "state": "NC",
+     "lon": -76.8928,
+     "lat": 35.8131,
+     "altitude_ft": -1.0,
+     "coast_km": 20.7,
+     "reason": "gage at -1 ft elevation, 21 km from the coast"
+    },
+    {
+     "id": "USGS-0208114150",
+     "name": "Roanoke River at Nc 45 near Westover, NC",
+     "state": "NC",
+     "lon": -76.7228,
+     "lat": 35.915,
+     "altitude_ft": -1.1,
+     "coast_km": 3.4,
+     "reason": "USGS also measures salinity here; gage at -1 ft elevation, 3 km from the coast"
+    },
+    {
+     "id": "USGS-01477050",
+     "name": "Delaware River at Chester Pa",
+     "state": "PA",
+     "lon": -75.3663,
+     "lat": 39.8368,
+     "altitude_ft": 0.0,
+     "coast_km": 1.2,
+     "reason": "gage at 0 ft elevation, 1 km from the coast"
+    },
+    {
+     "id": "USGS-01467200",
+     "name": "Delaware River at Penn'S Landing, Philadelphia, PA",
+     "state": "PA",
+     "lon": -75.1394,
+     "lat": 39.9464,
+     "altitude_ft": null,
+     "coast_km": null,
+     "reason": "USGS also measures tidally filtered streamflow here"
+    },
+    {
+     "id": "USGS-02110755",
+     "name": "Aiw at Briarcliffe Acres at N. Myrtle Beach, SC",
+     "state": "SC",
+     "lon": -78.7531,
+     "lat": 33.7985,
+     "altitude_ft": null,
+     "coast_km": null,
+     "reason": "on the manual list (Atlantic Intracoastal Waterway)"
+    },
+    {
+     "id": "USGS-02110760",
+     "name": "Aiw at Myrtlewood Golf Course at Myrtle Beach, SC",
+     "state": "SC",
+     "lon": -78.8667,
+     "lat": 33.7407,
+     "altitude_ft": 12.1,
+     "coast_km": 4.0,
+     "reason": "gage at 12 ft elevation, 4 km from the coast"
+    },
+    {
+     "id": "USGS-02110400",
+     "name": "Buck Creek near Longs, SC",
+     "state": "SC",
+     "lon": -78.7197,
+     "lat": 33.9535,
+     "altitude_ft": 5.3,
+     "coast_km": 14.5,
+     "reason": "gage at 5 ft elevation, 15 km from the coast"
+    },
+    {
+     "id": "USGS-02110704",
+     "name": "Waccamaw River at Conway Marina at Conway, SC",
+     "state": "SC",
+     "lon": -79.0437,
+     "lat": 33.8326,
+     "altitude_ft": -6.1,
+     "coast_km": 21.6,
+     "reason": "USGS also measures tidally filtered streamflow here; gage at -6 ft elevation, 22 km from the coast"
+    },
+    {
+     "id": "USGS-02110500",
+     "name": "Waccamaw River near Longs, SC",
+     "state": "SC",
+     "lon": -78.715,
+     "lat": 33.9127,
+     "altitude_ft": 4.2,
+     "coast_km": 10.4,
+     "reason": "gage at 4 ft elevation, 10 km from the coast"
+    },
+    {
+     "id": "USGS-02042500",
+     "name": "Chickahominy River near Providence Forge, VA",
+     "state": "VA",
+     "lon": -77.0608,
+     "lat": 37.4363,
+     "altitude_ft": 4.8,
+     "coast_km": 12.6,
+     "reason": "gage at 5 ft elevation, 13 km from the coast"
+    }
+   ]
   }
  }
 }

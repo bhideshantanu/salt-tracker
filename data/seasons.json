@@ -62,6 +62,13 @@
    "file": "data/season-2017-18.json",
    "sites": 539,
    "demo": false
+  },
+  {
+   "id": "2016-17",
+   "label": "Winter 2016\u201317",
+   "file": "data/season-2016-17.json",
+   "sites": 504,
+   "demo": false
   }
  ]
 }
