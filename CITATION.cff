@@ -17,6 +17,14 @@ authors:
     given-names: Shantanu V.
     orcid: "https://orcid.org/0000-0002-5248-0646"
 version: 1.0.0
+doi: 10.5281/zenodo.24316860
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.24316860
+    description: "This version (1.0.0), archived on Zenodo"
+  - type: doi
+    value: 10.5281/zenodo.24316859
+    description: "All versions; always resolves to the newest release"
 date-released: "2026-11-17"
 license: MIT
 repository-code: "https://github.com/bhideshantanu/salt-tracker"

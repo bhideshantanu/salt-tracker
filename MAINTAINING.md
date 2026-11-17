@@ -80,11 +80,15 @@ after a winter's archive is built. Never release for the daily data updates alon
 release creates a new DOI.
 
 1. Add a section for the new version at the top of `CHANGELOG.md`.
-2. In `CITATION.cff`, update `version` and `date-released`, and in the README's How to
-   cite, update the version number.
+2. In `CITATION.cff`, update `version` and `date-released`.
 3. On GitHub: **Releases → Draft a new release → Choose a tag**, type the new tag (for
    example `v1.1.0`), target `main`, paste the changelog section as the description, and
    click **Publish release**. Zenodo archives it and creates a DOI for that version.
+4. A few minutes later, copy the new version DOI from the Zenodo record (zenodo.org →
+   your name → GitHub → the repository's DOI badge). Put it in `CITATION.cff` (`doi` and
+   the first `identifiers` entry) and in the README's How to cite, with the new version
+   number. The all-versions DOI (10.5281/zenodo.24316859) and the README badge never
+   change.
 
 Version numbers: the last number goes up for fixes, the middle number for new features,
 and the first number when a change to the methods or the data files changes the numbers

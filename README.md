@@ -1,5 +1,7 @@
 # Salt Season Tracker
 
+[![DOI](https://zenodo.org/badge/1446260456.svg)](https://doi.org/10.5281/zenodo.24316859)
+
 A live map of road-salt pulses in U.S. streams. Every morning it downloads daily stream
 salinity from U.S. Geological Survey (USGS) sensors and shows how each stream compares
 with its own summer level, with past winters back to 2016–17 to replay and compare.
@@ -11,7 +13,12 @@ with its own summer level, with past winters back to 2016–17 to replay and com
 If you use the tracker or its data, please cite it:
 
 > Bhide, S. V. (2026). *Salt Season Tracker: a live map of road-salt pulses in U.S.
-> streams* (Version 1.0.0) [Computer software]. https://github.com/bhideshantanu/salt-tracker
+> streams* (Version 1.0.0) [Computer software]. Zenodo.
+> https://doi.org/10.5281/zenodo.24316860
+
+That DOI is for version 1.0.0 exactly, code and data as of its release; please use it
+(or the DOI of a later version) in papers. To refer to the tracker in general, use
+https://doi.org/10.5281/zenodo.24316859, which always points to the newest version.
 
 GitHub's **Cite this repository** button (right side of this page) gives the same
 citation in APA and BibTeX, from [`CITATION.cff`](CITATION.cff). What changed in each
