@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use the Salt Season Tracker or its data, please cite it as below."
+type: software
+title: "Salt Season Tracker: a live map of road-salt pulses in U.S. streams"
+abstract: >-
+  The Salt Season Tracker downloads daily mean specific conductance (and
+  streamflow, where measured) from U.S. Geological Survey stream sensors in the
+  lower 48 states every morning and compares each stream with its own May-October
+  level. It maps winter road-salt pulses, detects regional salt storms, scores
+  every stream and state over the season (peak, days at 3x and above, recovery
+  after a pulse, between-storm level), archives past winters back to 2016-17, and
+  describes each station's upstream watershed (EPA StreamCat metrics, land-use
+  classes after Chen and Husic, 2026). Code, daily data files and winter archives
+  are open.
+authors:
+  - family-names: Bhide
+    given-names: Shantanu V.
+    orcid: "https://orcid.org/0000-0002-5248-0646"
+version: 1.0.0
+date-released: "2026-11-17"
+license: MIT
+repository-code: "https://github.com/bhideshantanu/salt-tracker"
+url: "https://shantanubhide.com/salt-tracker/"
+keywords:
+  - road salt
+  - freshwater salinization
+  - specific conductance
+  - chloride
+  - winter water quality
+  - USGS
+  - open data
+  - watershed land use

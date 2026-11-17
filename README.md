@@ -1,9 +1,21 @@
 # Salt Season Tracker
 
 A live map of road-salt pulses in U.S. streams. Every morning it downloads daily stream
-salinity from USGS sensors and shows how each stream compares with its own summer level.
+salinity from U.S. Geological Survey (USGS) sensors and shows how each stream compares
+with its own summer level, with past winters back to 2016–17 to replay and compare.
 
-Live page (once set up): **https://shantanubhide.com/salt-tracker/**
+**Live page: https://shantanubhide.com/salt-tracker/**
+
+## How to cite
+
+If you use the tracker or its data, please cite it:
+
+> Bhide, S. V. (2026). *Salt Season Tracker: a live map of road-salt pulses in U.S.
+> streams* (Version 1.0.0) [Computer software]. https://github.com/bhideshantanu/salt-tracker
+
+GitHub's **Cite this repository** button (right side of this page) gives the same
+citation in APA and BibTeX, from [`CITATION.cff`](CITATION.cff). What changed in each
+version is in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## What's on the page
 
@@ -42,120 +54,40 @@ Live page (once set up): **https://shantanubhide.com/salt-tracker/**
   add `&landuse=urban` for one land-use class, or `&site=USGS-01646500` to open one
   stream's chart.
 
+## Using the data
+
+Everything the page shows is in this repository and free to reuse (see License below).
+
+- **On the page:** every ranking table and every stream's chart has a **Download CSV**
+  button. The stream CSVs include each station's watershed variables.
+- **Files in [`data/`](data/)**, updated every morning:
+  - `salt.json`: the live data, the last 185 days of daily specific conductance and
+    streamflow for every sensor, with each stream's summer (May–October) level.
+  - `season-YYYY-YY.json`: one archive per past winter, from `season-2016-17.json` on;
+    `seasons.json` lists them.
+  - `site-attributes.json`: each station's watershed facts and land-use class, keyed by
+    USGS site ID, with the units of every variable.
+  - `excluded-sites.json`: the coastal sensors left out, with the reason for each.
+- **A fixed copy for a paper:** cite a numbered release (see How to cite). Each release
+  is a frozen snapshot of the code and the data on that day.
+
 ## How it works
 
-There are three parts, and you never have to run anything on your own computer.
+Everything runs on GitHub's servers: a scheduled job downloads the USGS data every
+morning, works out the numbers, and saves them as files that the web page reads.
 
 | Part | File | What it does |
 |---|---|---|
-| Data script | `scripts/fetch_salt.py` | Downloads daily mean specific conductance (USGS parameter 00095) for every stream sensor in the lower 48 states, works out each stream's May–October median ("normal"), downloads daily streamflow (00060) at the same sensors, and saves the last 185 days to `data/salt.json`. It also archives each finished winter (see below). |
-| Data files | `data/salt.json`, `data/season-YYYY-YY.json`, `data/seasons.json`, `data/excluded-sites.json` | The live data, one archive per past winter, the list of archives for the season picker, and the coastal sensors left out (with reasons). |
+| Data script | `scripts/fetch_salt.py` | Downloads daily mean specific conductance (USGS parameter 00095) for every stream sensor in the lower 48 states, works out each stream's May–October median ("normal"), downloads daily streamflow (00060) at the same sensors, and saves the last 185 days to `data/salt.json`. It also archives each finished winter (November–April) every May. |
+| Data files | `data/salt.json`, `data/season-YYYY-YY.json`, `data/seasons.json`, `data/site-attributes.json`, `data/excluded-sites.json` | The live data, one archive per past winter, the list of archives for the season picker, each station's watershed facts, and the coastal sensors left out (with reasons). |
 | Watershed script | `scripts/fetch_attributes.py` | Matches each station to its NHDPlus stream segment with the USGS Network-Linked Data Index (NLDI), reads that segment's whole-watershed metrics from EPA StreamCat, and saves land cover, the land-use class and other basin variables to `data/site-attributes.json`. Runs after the salt update; only new stations are looked up, so it takes seconds on a normal day. |
 | Coastal filter inputs | `sources/coastline-us.json`, `sources/coastal-sites.csv` | The U.S. ocean coastline (Natural Earth, public domain) and a short manual keep/drop list. |
 | Daily robot | `.github/workflows/update-data.yml` | A GitHub Actions workflow. GitHub runs the data script for free every morning at 13:37 UTC and saves the new files in `data/` back into this repository. |
-| Backfill robot | `.github/workflows/backfill-winters.yml` | Run by hand. Builds every missing winter archive back to the year you choose, one winter at a time, and saves each one as it finishes. |
+| Backfill robot | `.github/workflows/backfill-winters.yml` | Run by hand when needed. Builds every missing winter archive back to a chosen year, one winter at a time, saving each as it finishes. |
 | Web page | `index.html` | Everything visitors see. GitHub Pages hosts it. |
 
 `assets/states.json` holds the state outlines (built once by `scripts/build_states.py`).
 `scripts/albers.py` is the map projection both the outlines and the sensors use.
-
-### What a daily run does
-
-- **Daily update (fast):** re-downloads only the last 21 days and merges them in.
-- **Full rebuild:** downloads 400 days and recalculates each stream's normal level. It
-  happens automatically on the first run, after an upgrade that changes the file layout,
-  and whenever the normal levels are more than 30 days old. You can also force one from
-  the Actions tab.
-- **Winter archive:** when the most recent finished winter (November–April) has no
-  archive yet, the run builds one: that winter's daily values, compared with the
-  May–October before it, plus streamflow. This happens once a year, in early May (and on
-  the first run after this upgrade, for winter 2025–26). If the archive download fails,
-  the live data is still saved and the next morning's run tries again.
-
-### Adding older winters (optional)
-
-**All of them at once:** **Actions → Backfill past winters → Run workflow**, keep `2016`
-(or type the first winter you want) and run it. It works backward from the most recent
-winter, skips winters that already have an archive, and saves each winter as soon as it
-finishes, so a run that stops partway keeps what it built; run it again to pick up the
-rest. A winter can take half an hour or more, so the whole set may take a few hours
-(GitHub stops a run after 6 hours). Older winters have fewer sensors.
-
-**Just one:** **Actions → Update salt data → Run workflow**, type the winter's starting
-year in the season box (for example `2024` for winter 2024–25), and run it. It adds
-`data/season-2024-25.json` and the page's season picker lists it.
-
-## One-time setup (about 15 minutes)
-
-### 1. Create the repository
-
-1. On GitHub, click **+ → New repository**.
-2. Name it `salt-tracker`, set it to **Public**, and click **Create repository**.
-3. Upload these files: on the new repo page click **uploading an existing file**, drag in
-   everything from this folder (including the hidden `.github` folder and `.nojekyll`),
-   and click **Commit changes**.
-   - On a Mac, press `Cmd + Shift + .` in Finder to show hidden files before dragging.
-   - Check afterwards that `.github/workflows/update-data.yml` is in the repo. If the
-     upload skipped it, use **Add file → Create new file**, type
-     `.github/workflows/update-data.yml` as the name, and paste the file's contents.
-
-### 2. Add a free USGS API key (recommended)
-
-The USGS limits how many requests you can make per hour without a key.
-
-1. Sign up at https://api.waterdata.usgs.gov/signup/ (the key arrives by email).
-2. In your repo: **Settings → Secrets and variables → Actions → New repository secret**.
-3. Name: `API_USGS_PAT`. Secret: paste the key. Click **Add secret**.
-
-### 3. Turn on the website
-
-1. **Settings → Pages**.
-2. Under **Build and deployment**, set **Source** to **Deploy from a branch**, branch
-   **main**, folder **/ (root)**, then **Save**.
-3. Because `bhideshantanu.github.io` already uses `shantanubhide.com`, this repo is
-   served at **https://shantanubhide.com/salt-tracker/** automatically.
-
-### 4. Run it the first time
-
-1. Open the **Actions** tab. If GitHub asks, click **I understand my workflows, go ahead
-   and enable them**.
-2. Click **Update salt data → Run workflow**, tick **Rebuild everything**, and click the
-   green **Run workflow** button.
-3. Wait for the green check (the first full run takes several minutes). Click into it to
-   see the log if anything goes red.
-4. Open https://shantanubhide.com/salt-tracker/ (give Pages a minute or two to update).
-
-After this, it updates itself every morning.
-
-## Posting to LinkedIn
-
-1. Open the page, drag the slider (or press **Play**) to the day you want.
-2. Pick the season, area and map view you want; zoom in if it helps.
-3. Click **Save image**. You get a 2400 × 2400 PNG with the headline, map, legend, a
-   season strip and your site name.
-4. Post the image itself (not just the link), write two or three lines about what it
-   shows, and put the page link in the first comment.
-
-Best moments to post: the morning after the first big snowstorm of the season, and an
-end-of-season recap in March.
-
-## Previewing on your own computer (optional)
-
-You need Python 3.10 or newer.
-
-```bash
-cd salt-tracker
-python scripts/fetch_salt.py --demo   # writes SYNTHETIC test data (clearly labeled)
-python -m http.server 8000            # then open http://localhost:8000
-```
-
-Opening `index.html` by double-clicking won't work: browsers block pages opened from a
-file from reading other files, so it needs the small local server above.
-
-To try real data locally: `pip install -r requirements.txt`, then
-`python scripts/fetch_salt.py --full`. Before uploading to GitHub, delete
-`data/salt.json` if it holds demo data. The robot replaces it anyway, but the page shows
-a demo banner until it does.
 
 ## Method notes and limits
 
@@ -169,9 +101,8 @@ a demo banner until it does.
   tidally filtered streamflow or water level against sea level at the gage, or when the
   gage is below 15 ft elevation and within 25 km of the ocean or Gulf coastline. Every
   sensor left out is listed with its reason in `data/excluded-sites.json` and on the page.
-- **Overriding the filter:** add a line to `sources/coastal-sites.csv`, such as
-  `USGS-01649500,keep,urban stream above the head of tide` (or `drop`). The next morning's
-  run rebuilds the live data and last winter's archive with the change.
+- **Manual list:** a few sensors are kept or left out by hand, each with a reason, in
+  `sources/coastal-sites.csv`.
 - **Categories:** under 1.5×, 1.5–3×, 3–10×, 10× or more of normal.
 - **Season:** metrics run from November 1 to the selected day.
 - **Between storms:** 25th percentile of a stream's daily ratios over the season (14+
@@ -199,28 +130,26 @@ a demo banner until it does.
 - **Caveats:** data are provisional. Drought, wastewater, mining and sensor problems can
   also raise conductance. Conductance is not chloride concentration.
 
-## If something goes wrong
+## Data sources and credits
 
-- **Red X on the Actions tab:** open the run and read the last lines of the log.
-  - `429` or "rate limit": add the API key (step 2) and re-run.
-  - `No data downloaded from USGS`: the USGS service may be down; try again later.
-- **Page says "The data didn't load":** the workflow hasn't produced `data/salt.json`
-  yet. Run it (step 4).
-- **No season picker:** the winter archive hasn't been built yet. The log of the latest
-  run says why ("Could not build the ... archive this time"); the next run retries.
-- **Run takes long:** the first run after an upgrade does a full rebuild plus last
-  winter's archive, which can take 30–60 minutes. Daily runs take a few minutes.
-- **No watershed picker:** `data/site-attributes.json` doesn't exist yet or holds no
-  land-use classes. Open the latest run's **Look up watershed facts** step: it lists how
-  how many stations were matched and, for the first one, which StreamCat values came
-  back. This step never stops the salt update.
-- **The workflow stopped running:** GitHub pauses scheduled workflows in repos with no
-  activity for 60 days. The daily data commits normally count as activity; if it pauses,
-  re-enable it on the Actions tab.
+- Stream salinity and flow: [USGS Water Data API](https://api.waterdata.usgs.gov/), via the
+  USGS [`dataretrieval`](https://github.com/DOI-USGS/dataretrieval-python) package.
+  Provisional data.
+- Stream segments: [USGS Network-Linked Data Index](https://api.water.usgs.gov/nldi/)
+  (NHDPlus Version 2.1).
+- Watershed metrics: EPA
+  [StreamCat](https://www.epa.gov/national-aquatic-resource-surveys/streamcat-dataset)
+  (Hill and others, 2016).
+- Land-use classes: [Chen and Husic (2026)](https://doi.org/10.1038/s43247-026-03788-2),
+  *Communications Earth & Environment*.
+- Coastline and the District of Columbia outline: Natural Earth (public domain). State
+  outlines: U.S. Census data via the folium project's `us-states.json`.
 
-Data: [USGS Water Data API](https://api.waterdata.usgs.gov/) via the USGS
-[`dataretrieval`](https://github.com/DOI-USGS/dataretrieval-python) package. State
-outlines from U.S. Census data via the folium project's `us-states.json`; District of
-Columbia outline from Natural Earth. Stream segments from the
-[USGS NLDI](https://api.water.usgs.gov/nldi/) (NHDPlus Version 2.1); watershed metrics from
-EPA [StreamCat](https://www.epa.gov/national-aquatic-resource-surveys/streamcat-dataset).
+## License
+
+Code: [MIT License](LICENSE), © 2026 Shantanu V. Bhide. The data the tracker downloads
+come from U.S. government sources (USGS, EPA) and Natural Earth (public domain); please
+also credit them, and Chen and Husic (2026) for the land-use classes, when you use the
+watershed data.
+
+Running your own copy, or maintaining this one: see [`MAINTAINING.md`](MAINTAINING.md).
